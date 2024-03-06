@@ -1,4 +1,7 @@
 
+# import torch
+# import torch.nn as nn
+
 # class ConvLSTM1D(nn.Module):
 #     def __init__(
 #         self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
@@ -32,7 +35,6 @@
 #     def forward(self, x):
 #         # Input shape: (batch_size, sequence_length, input_size)
 
-#         # print("Input Shape:", x.shape)
 
 #         # Initialize hidden and cell states
 #         batch_size, _, _ = x.size()
@@ -51,6 +53,7 @@
 #         # print("selected_array", selected_array.shape)
 
 #         x = self.conv_layers(x)
+
 
 
 #         # ConvLSTM forward pass
@@ -78,8 +81,12 @@
 
 #         # print("Output Shape:", output.shape)
 
+#         # print("Output Shape:", output.shape)
+
 #         return output
 
+import torch
+import torch.nn as nn
 
 import torch
 import torch.nn as nn
@@ -139,6 +146,7 @@ class ConvLSTM1D(nn.Module):
         # Concatenate outputs from all channels
         output = torch.cat(outputs, dim=1)
 
+
         # Reshape output to match the input size of fully connected layer
         output = output.view(batch_size, -1)
 
@@ -146,4 +154,5 @@ class ConvLSTM1D(nn.Module):
         output = self.fc(output)
 
         return output
+
 
