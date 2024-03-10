@@ -87,15 +87,48 @@ def train(
             with torch.no_grad():
                 model.eval()
                 val_loss = 0.0
+                bad_samples_val =[]
+                mse_threshold = 100
                 for i, (val_images, val_labels) in enumerate(validation_loader):
                     val_images = val_images.to(device)
                     val_labels = val_labels.to(device)
 
                     val_outputs = model(val_images)
+                    loss = criterion(val_outputs, val_labels)
+                    print("original loss:",loss)
+                    print("Shapes:")
+                    print("loss:", loss.shape)
+                    print("val_outputs:", val_outputs.shape)
+                    print("val_images:", val_images.shape)
+                    print("val_labels:", val_labels.shape)
+
+                    batch_size = val_images.size(0)
+                    last_frames = val_images[:, -1, :]
+                    duplicated_last_frames = last_frames.repeat(1, 5)
+                    reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
+                    print("reshaped_last_frames:", reshaped_last_frames.shape)
+                    random = criterion(reshaped_last_frames, val_labels)
+                    print("not accurate loss:", random)
+
+
+                    if loss.item() > mse_threshold:
+                        for val_output, image, label in zip(val_outputs, val_images, val_labels):
+                            bad_samples_val.append((image, label, val_output))
+
                     val_loss += criterion(val_outputs, val_labels).item()
 
-                    output_folder = "visualizations/validation/" + model_name
-                    visualize(labels, y_hat, output_folder, n_th_frame, future_f)
+                    output_folder = "visualizations/validation/" + model_name+ "/both"
+                    visualize(val_images, val_labels, val_outputs, output_folder, n_th_frame, future_f)
+
+                    output_folder_b = "visualizations/validation/" + model_name+ "/bad"
+                    os.makedirs(output_folder_b, exist_ok=True)
+
+                    for idx, (image, label, y_hat) in enumerate(bad_samples_val):
+                        print(idx)
+                        sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                        os.makedirs(sample_folder, exist_ok=True)
+                        visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
+
 
                 val_loss /= len(validation_loader)
 
@@ -125,6 +158,8 @@ def train(
         model.eval()
         se = 0
         samples_count = 0
+        mse_threshold = 200
+        bad_samples = []
 
         with torch.no_grad():
             for images, labels in test_loader:
@@ -134,12 +169,25 @@ def train(
                 y_hat = model(images)
                 print(y_hat.shape)
                 loss = criterion(y_hat, labels)
+                for loss, y_hat, image, label in zip(loss, y_hat, images, labels):
+                    mse = loss.item()
+                    if mse > mse_threshold:
+                        bad_samples.append((image, label, y_hat))
 
                 se += loss.item() * labels.size(0)
                 samples_count += labels.size(0)
 
-                output_folder = "visualizations/test/" + model_name
-                visualize(labels, y_hat, output_folder, n_th_frame, future_f)
+                output_folder = "visualizations/test/both" + model_name
+                visualize(images, labels, y_hat, output_folder, n_th_frame, future_f)
+
+                output_folder_b = "visualizations/test/bad/" + model_name
+                os.makedirs(output_folder_b, exist_ok=True)
+
+                for idx, (image, label, y_hat) in enumerate(bad_samples):
+                    print(idx)
+                    sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                    os.makedirs(sample_folder, exist_ok=True)
+                    visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
         mse = se / samples_count
         print(f"MSE of test data: {mse:.3f}")
@@ -155,7 +203,7 @@ def save_checkpoint(epoch, model, optimizer, filename):
     torch.save(checkpoint, filename)
 
 
-def visualize(viz_labels, viz_outputs, output_folder, n_th_frame, future_f):
+def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, future_f):
     labels = viz_labels.view(viz_labels.size(0), 5, 100)
     y_hat = viz_outputs.view(viz_outputs.size(0), 5, 100)
 
@@ -163,25 +211,50 @@ def visualize(viz_labels, viz_outputs, output_folder, n_th_frame, future_f):
         outer_loop = 1
         inner_loop = 1
     else:
-        outer_loop = labels.size(1)
+        outer_loop = labels.size(0)
+        interval = 10
+        num_iterations = outer_loop // interval
         inner_loop = future_f
 
-    for i in range(outer_loop):
+    for iteration in range(num_iterations):
+        i = iteration * interval
         label_frame = labels[i]
         y_hat_frame = y_hat[i]
+        image_frame = viz_images[i]
 
         sample_folder = os.path.join(output_folder, f"sample_{i}")
         os.makedirs(sample_folder, exist_ok=True)
 
+        fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(15, 6))
+
+        for k in range(10):
+            ax = axes[k // 5, k % 5]  # Accessing subplot axes
+            image = image_frame[k]  # Get the image frame
+            image_array = image.cpu().detach().numpy()
+            ax.plot(image_array, label="Data Array")
+            ax.set_title(f'Data {k+1}')  # Set title for the subplot
+            ax.set_ylim(bottom=0)
+
+        y_max = max(ax.get_ylim()[1] for ax in axes.flat)
+        for ax in axes.flat:
+            ax.set_ylim(0, y_max)
+
+        plt.tight_layout()  # Adjust layout
+
+        # Save the plot as an image file
+        plt.savefig(os.path.join(sample_folder, f"sample_{i}.png"))
+        plt.close()  # Close the plot after saving
+
         for j in range(inner_loop):
-            label_array = label_frame.cpu().detach().numpy()
-            y_hat_array = y_hat_frame.cpu().detach().numpy()
+            label_array = label_frame[j].cpu().detach().numpy()
+            y_hat_array = y_hat_frame[j].cpu().detach().numpy()
 
             plt.figure(figsize=(8, 4))
-            plt.plot(label_array[j], label="Label Array")
-            plt.plot(y_hat_array[j], label="y_hat Array")
+            plt.plot(label_array, label="Label Array")
+            plt.plot(y_hat_array, label="y_hat Array")
             plt.title(f"Frame {j}")
             plt.legend()
+            plt.ylim(bottom=0)
 
             plt.savefig(os.path.join(sample_folder, f"sample_{i}_frame_{j}.png"))
             plt.close()
