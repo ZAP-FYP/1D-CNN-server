@@ -206,13 +206,14 @@ def save_checkpoint(epoch, model, optimizer, filename):
 def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, future_f):
     labels = viz_labels.view(viz_labels.size(0), 5, 100)
     y_hat = viz_outputs.view(viz_outputs.size(0), 5, 100)
+    print(1)
 
     if n_th_frame:
         outer_loop = 1
         inner_loop = 1
     else:
         outer_loop = labels.size(0)
-        interval = 10
+        interval = 1
         num_iterations = outer_loop // interval
         inner_loop = future_f
 
@@ -225,7 +226,7 @@ def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, fu
         sample_folder = os.path.join(output_folder, f"sample_{i}")
         os.makedirs(sample_folder, exist_ok=True)
 
-        fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(15, 6))
+        fig, axes = plt.subplots(nrows=3, ncols=5, figsize=(15, 9))  # Increased nrows to accommodate the new row
 
         for k in range(10):
             ax = axes[k // 5, k % 5]  # Accessing subplot axes
@@ -235,6 +236,18 @@ def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, fu
             ax.set_title(f'Data {k+1}')  # Set title for the subplot
             ax.set_ylim(bottom=0)
 
+        for j in range(inner_loop):
+            label_array = label_frame[j].cpu().detach().numpy()
+            y_hat_array = y_hat_frame[j].cpu().detach().numpy()
+
+            # Create a new row of subplots for inner_loop
+            ax = axes[-1, j]  # Accessing subplot axes in the new row
+            ax.plot(label_array, label="Label Array")
+            ax.plot(y_hat_array, label="y_hat Array")
+            ax.set_title(f"Frame {j}")
+            ax.legend()
+            ax.set_ylim(bottom=0)
+         
         y_max = max(ax.get_ylim()[1] for ax in axes.flat)
         for ax in axes.flat:
             ax.set_ylim(0, y_max)
@@ -242,19 +255,12 @@ def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, fu
         plt.tight_layout()  # Adjust layout
 
         # Save the plot as an image file
-        plt.savefig(os.path.join(sample_folder, f"sample_{i}.png"))
-        plt.close()  # Close the plot after saving
-
-        for j in range(inner_loop):
-            label_array = label_frame[j].cpu().detach().numpy()
-            y_hat_array = y_hat_frame[j].cpu().detach().numpy()
-
-            plt.figure(figsize=(8, 4))
-            plt.plot(label_array, label="Label Array")
-            plt.plot(y_hat_array, label="y_hat Array")
-            plt.title(f"Frame {j}")
-            plt.legend()
-            plt.ylim(bottom=0)
-
-            plt.savefig(os.path.join(sample_folder, f"sample_{i}_frame_{j}.png"))
-            plt.close()
+        output_file = os.path.join(sample_folder, f"sample_{i}.png")
+        try:
+            plt.savefig(output_file)
+            print(f"Image saved successfully: {output_file}")
+        except Exception as e:
+            print(f"Error saving image: {output_file}")
+            print(e)
+        finally:
+            plt.close()  # Close the plot after saving
