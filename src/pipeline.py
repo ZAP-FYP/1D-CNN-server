@@ -184,7 +184,7 @@ def train(
                 os.makedirs(output_folder_b, exist_ok=True)
 
                 for idx, (image, label, y_hat) in enumerate(bad_samples):
-                    print(idx)
+                    # print(idx)
                     sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
                     os.makedirs(sample_folder, exist_ok=True)
                     visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
