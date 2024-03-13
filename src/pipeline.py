@@ -95,20 +95,20 @@ def train(
 
                     val_outputs = model(val_images)
                     loss = criterion(val_outputs, val_labels)
-                    print("original loss:",loss)
-                    print("Shapes:")
-                    print("loss:", loss.shape)
-                    print("val_outputs:", val_outputs.shape)
-                    print("val_images:", val_images.shape)
-                    print("val_labels:", val_labels.shape)
+                    # print("original loss:",loss)
+                    # print("Shapes:")
+                    # print("loss:", loss.shape)
+                    # print("val_outputs:", val_outputs.shape)
+                    # print("val_images:", val_images.shape)
+                    # print("val_labels:", val_labels.shape)
 
                     batch_size = val_images.size(0)
                     last_frames = val_images[:, -1, :]
                     duplicated_last_frames = last_frames.repeat(1, 5)
                     reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
-                    print("reshaped_last_frames:", reshaped_last_frames.shape)
+                    # print("reshaped_last_frames:", reshaped_last_frames.shape)
                     random = criterion(reshaped_last_frames, val_labels)
-                    print("not accurate loss:", random)
+                    # print("not accurate loss:", random)
 
 
                     if loss.item() > mse_threshold:
@@ -124,7 +124,7 @@ def train(
                     os.makedirs(output_folder_b, exist_ok=True)
 
                     for idx, (image, label, y_hat) in enumerate(bad_samples_val):
-                        print(idx)
+                        # print(idx)
                         sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
                         os.makedirs(sample_folder, exist_ok=True)
                         visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
@@ -258,7 +258,7 @@ def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, fu
         output_file = os.path.join(sample_folder, f"sample_{i}.png")
         try:
             plt.savefig(output_file)
-            print(f"Image saved successfully: {output_file}")
+            # print(f"Image saved successfully: {output_file}")
         except Exception as e:
             print(f"Error saving image: {output_file}")
             print(e)
