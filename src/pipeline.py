@@ -118,7 +118,7 @@ def train(
                     val_loss += criterion(val_outputs, val_labels).item()
 
                     output_folder = "visualizations/validation/" + model_name+ "/both"
-                    visualize(val_images, val_labels, val_outputs, output_folder, n_th_frame, future_f)
+                    visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
 
                     output_folder_b = "visualizations/validation/" + model_name+ "/bad"
                     os.makedirs(output_folder_b, exist_ok=True)
@@ -206,7 +206,6 @@ def save_checkpoint(epoch, model, optimizer, filename):
 def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, future_f):
     labels = viz_labels.view(viz_labels.size(0), 5, 100)
     y_hat = viz_outputs.view(viz_outputs.size(0), 5, 100)
-    print(1)
 
     if n_th_frame:
         outer_loop = 1
