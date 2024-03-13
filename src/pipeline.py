@@ -66,6 +66,7 @@ def train(
                 labels = labels.to(device)
 
                 y_hat = model(images)
+                print(f'y_hat.shape {y_hat.shape} labels.shape {labels.shape}')
                 loss = criterion(y_hat, labels)
                 train_loss += loss.item()
 
@@ -88,7 +89,7 @@ def train(
                 model.eval()
                 val_loss = 0.0
                 bad_samples_val =[]
-                mse_threshold = 100
+                mse_threshold = 1000
                 for i, (val_images, val_labels) in enumerate(validation_loader):
                     val_images = val_images.to(device)
                     val_labels = val_labels.to(device)
@@ -158,7 +159,7 @@ def train(
         model.eval()
         se = 0
         samples_count = 0
-        mse_threshold = 200
+        mse_threshold = 1000
         bad_samples = []
 
         with torch.no_grad():

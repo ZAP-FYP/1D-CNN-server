@@ -87,9 +87,7 @@
 
 import torch
 import torch.nn as nn
-
-import torch
-import torch.nn as nn
+import torch.nn.functional as F
 
 class ConvLSTM1D(nn.Module):
     def __init__(
@@ -146,6 +144,277 @@ class ConvLSTM1D(nn.Module):
         # Concatenate outputs from all channels
         output = torch.cat(outputs, dim=1)
 
+
+        # Reshape output to match the input size of fully connected layer
+        output = output.view(batch_size, -1)
+
+        # Fully connected layer
+        output = self.fc(output)
+
+        return output
+
+# import torch
+# import torch.nn as nn
+
+# class ConvLSTM1D_Attention(nn.Module):
+#     def __init__(
+#         self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
+#     ):
+#         super(ConvLSTM1D_Attention, self).__init__()
+#         self.input_size = input_size
+#         self.hidden_size = hidden_size
+#         self.kernel_size = kernel_size
+#         self.num_layers = num_layers
+#         self.bidirectional = bidirectional
+
+#         # Convolutional LSTM layers
+#         self.conv_layer = nn.Conv1d(
+#             in_channels=10, out_channels=1, kernel_size=5, stride=1, padding=2
+#         )
+#         self.relu = nn.ReLU()
+#         self.conv_lstm = nn.LSTM(
+#             1,  # Change input size to 1
+#             hidden_size,
+#             num_layers,
+#             batch_first=True,
+#             bidirectional=bidirectional,
+#         )
+
+#         # Attention mechanism layers
+#         self.w_query = nn.Linear(hidden_size, hidden_size, bias=False)
+#         self.w_key = nn.Linear(1, hidden_size, bias=False)
+#         self.w_value = nn.Linear(1, hidden_size, bias=False)
+#         self.softmax = nn.Softmax(dim=-1)
+
+#         # Adjust the size of the fully connected layer output accordingly
+#         fc_input_size = 2 * hidden_size if bidirectional else hidden_size
+#         self.fc = nn.Linear(fc_input_size * input_size, 500)  # Adjusting input size
+#         print(f'self.fc {fc_input_size,input_size}')
+#     def forward(self, x):
+#         # Input shape: (batch_size, sequence_length, input_size)
+
+#         # Initialize hidden and cell states
+#         batch_size, _, _ = x.size()
+#         num_directions = 2 if self.bidirectional else 1
+#         h0 = torch.zeros(
+#             self.num_layers * num_directions, batch_size, self.hidden_size
+#         ).to(x.device)
+#         c0 = torch.zeros(
+#             self.num_layers * num_directions, batch_size, self.hidden_size
+#         ).to(x.device)
+
+#         # Process each channel sequentially with attention
+#         outputs = []
+#         for i in range(x.size(2)):
+#             x_channel = x[:, :, i].unsqueeze(2)  # Select one channel
+#             x_channel = self.conv_layer(x_channel)  # Apply convolution
+#             x_channel = self.relu(x_channel)  # Apply ReLU
+
+#             # Reshape for LSTM
+#             x_channel = x_channel.permute(0, 2, 1) 
+            
+#             # Attention mechanism
+#             lstm_out, _ = self.conv_lstm(x_channel, (h0, c0))  # ConvLSTM forward pass
+#             # print("LSTM Output Shape:", lstm_out.shape)
+
+#             queries = self.w_query(lstm_out)  # Get queries from LSTM output
+#             # print(f"x_channel {x_channel.shape}") 
+#             keys = self.w_key(x_channel)  # Get keys from input features
+#             values = self.w_value(x_channel)  # Get values from input features
+#             attention_scores = self.softmax(torch.bmm(queries, keys.transpose(1, 2)))  # Attention scores
+#             context = torch.bmm(attention_scores, values)  # Weighted context vector
+
+#             # Combine context and LSTM output
+#             lstm_out = torch.cat((lstm_out, context), dim=2)  
+#             print("LSTM Output Shape:", lstm_out.shape)
+
+#             lstm_last_output = lstm_out[:, -1, :]  # Take output of last time step
+#             outputs.append(lstm_last_output)
+
+#         # Concatenate outputs from all channels
+#         output = torch.cat(outputs, dim=1)
+
+#         # Reshape output to match the input size of fully connected layer
+#         output = output.view(batch_size, -1)
+#         print(f'output {output.shape}')
+
+#         # Fully connected layer
+#         output = self.fc(output)
+
+#         return output
+
+
+# class Attention(nn.Module):
+#     def __init__(self, hidden_size):
+#         super(Attention, self).__init__()
+#         self.hidden_size = hidden_size
+#         # self.attn_weights = nn.Parameter(torch.randn(hidden_size*10, 1))
+#         self.attn_weights = nn.Parameter(torch.randn(hidden_size*100, hidden_size))
+
+#     def forward(self, lstm_out):
+#         # Compute attention scores
+#         print("LSTM Output Shape:", lstm_out.shape)
+#         print("Attention Weights Shape:", self.attn_weights.shape)
+#         # lstm_out = lstm_out.view(256, -1)
+#         print("LSTM Output Shape:", lstm_out.shape)
+
+#         attn_scores = torch.matmul(lstm_out, self.attn_weights)
+#         attn_scores = F.softmax(attn_scores, dim=1)  # Apply softmax to get attention weights
+
+#         # Apply attention weights to LSTM outputs
+#         attn_output = torch.sum(attn_scores * lstm_out, dim=1)
+
+#         return attn_output
+
+# class ConvLSTM1DWithAttention(nn.Module):
+#     def __init__(
+#         self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
+#     ):
+#         super(ConvLSTM1DWithAttention, self).__init__()
+#         self.input_size = input_size
+#         self.hidden_size = hidden_size
+#         self.kernel_size = kernel_size
+#         self.num_layers = num_layers
+#         self.bidirectional = bidirectional
+
+#         # Convolutional LSTM layers
+#         self.conv_layer = nn.Conv1d(
+#             in_channels=10, out_channels=1, kernel_size=5, stride=1, padding=2
+#         )
+#         self.relu = nn.ReLU()
+#         self.conv_lstm = nn.LSTM(
+#             1,  # Change input size to 1
+#             hidden_size,
+#             num_layers,
+#             batch_first=True,
+#             bidirectional=bidirectional,
+#         )
+
+#         # Attention mechanism
+#         self.attention = Attention(hidden_size * (2 if bidirectional else 1))
+
+#         # Adjust the size of the fully connected layer output accordingly
+#         fc_input_size = hidden_size * (2 if bidirectional else 1)
+#         self.fc = nn.Linear(fc_input_size, 500)  # Adjusting input size
+
+#     def forward(self, x):
+#         # Input shape: (batch_size, sequence_length, input_size)
+
+#         # Initialize hidden and cell states
+#         batch_size, _, _ = x.size()
+#         num_directions = 2 if self.bidirectional else 1
+#         h0 = torch.zeros(
+#             self.num_layers * num_directions, batch_size, self.hidden_size
+#         ).to(x.device)
+#         c0 = torch.zeros(
+#             self.num_layers * num_directions, batch_size, self.hidden_size
+#         ).to(x.device)
+
+#         # Process each channel sequentially
+#         outputs = []
+#         for i in range(x.size(2)):
+#             x_channel = x[:, :, i].unsqueeze(2)  # Select one channel
+#             x_channel = self.conv_layer(x_channel)  # Apply convolution
+#             x_channel = self.relu(x_channel)  # Apply ReLU
+#             x_channel = x_channel.permute(0, 2, 1)  # Reshape for LSTM
+#             lstm_out, _ = self.conv_lstm(x_channel, (h0, c0))  # ConvLSTM forward pass
+#             lstm_last_output = lstm_out[:, -1, :]  # Take output of last time step
+#             outputs.append(lstm_last_output)
+
+#         # Concatenate outputs from all channels
+#         output = torch.cat(outputs, dim=1)
+#         print("Output Shape:", output.shape)
+
+#         output = output.view(batch_size, 500)
+#         print("Output Shape:", output.shape)
+
+#         # Apply attention mechanism
+#         attn_output = self.attention(output)
+
+#         print("attention Output Shape:", attn_output.shape)
+
+#         # Fully connected layer
+#         output = self.fc(attn_output)
+
+#         return output
+
+
+class Attention(nn.Module):
+    def __init__(self, hidden_size):
+        super(Attention, self).__init__()
+        self.hidden_size = hidden_size
+        self.attn = nn.Linear(hidden_size, 1)
+
+    def forward(self, lstm_out):
+        # lstm_out shape: (batch_size, seq_len, hidden_size)
+        attn_weights = F.softmax(self.attn(lstm_out), dim=1)
+        # Multiply each LSTM output by its corresponding attention weight
+        weighted_out = torch.mul(lstm_out, attn_weights)
+        # Sum the weighted outputs along the sequence length dimension
+        context_vector = torch.sum(weighted_out, dim=1)
+        return context_vector
+
+
+class ConvLSTM1D_Attention(nn.Module):
+    def __init__(
+        self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
+    ):
+        super(ConvLSTM1D_Attention, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.kernel_size = kernel_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+
+        # Convolutional LSTM layers
+        self.conv_layer = nn.Conv1d(
+            in_channels=10, out_channels=1, kernel_size=5, stride=1, padding=2
+        )
+        self.relu = nn.ReLU()
+        self.conv_lstm = nn.LSTM(
+            1,  # Change input size to 1
+            hidden_size,
+            num_layers,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
+
+        # Attention mechanism
+        self.attention = Attention(hidden_size)
+
+        # Adjust the size of the fully connected layer output accordingly
+        fc_input_size = hidden_size
+        self.fc = nn.Linear(fc_input_size * input_size, 500)  # Adjusting input size
+
+    def forward(self, x):
+        # Input shape: (batch_size, sequence_length, input_size)
+
+        # Initialize hidden and cell states
+        batch_size, _, _ = x.size()
+        num_directions = 2 if self.bidirectional else 1
+        h0 = torch.zeros(
+            self.num_layers * num_directions, batch_size, self.hidden_size
+        ).to(x.device)
+        c0 = torch.zeros(
+            self.num_layers * num_directions, batch_size, self.hidden_size
+        ).to(x.device)
+
+        # Process each channel sequentially
+        outputs = []
+        for i in range(x.size(2)):
+            x_channel = x[:, :, i].unsqueeze(2)  # Select one channel
+            x_channel = self.conv_layer(x_channel)  # Apply convolution
+            x_channel = self.relu(x_channel)  # Apply ReLU
+            x_channel = x_channel.permute(0, 2, 1)  # Reshape for LSTM
+            lstm_out, _ = self.conv_lstm(x_channel, (h0, c0))  # ConvLSTM forward pass
+
+            # Apply attention mechanism
+            context_vector = self.attention(lstm_out)
+
+            outputs.append(context_vector)
+
+        # Concatenate outputs from all channels
+        output = torch.cat(outputs, dim=1)
 
         # Reshape output to match the input size of fully connected layer
         output = output.view(batch_size, -1)
