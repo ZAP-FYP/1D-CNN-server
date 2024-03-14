@@ -102,33 +102,33 @@ def train(
                     # print("val_outputs:", val_outputs.shape)
                     # print("val_images:", val_images.shape)
                     # print("val_labels:", val_labels.shape)
-                    if epoch +1 >=10:
-                        batch_size = val_images.size(0)
-                        last_frames = val_images[:, -1, :]
-                        duplicated_last_frames = last_frames.repeat(1, 5)
-                        reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
-                        # print("reshaped_last_frames:", reshaped_last_frames.shape)
-                        random = criterion(reshaped_last_frames, val_labels)
-                        # print("not accurate loss:", random)
+                    # if epoch +1 >=10:
+                    #     batch_size = val_images.size(0)
+                    #     last_frames = val_images[:, -1, :]
+                    #     duplicated_last_frames = last_frames.repeat(1, 5)
+                    #     reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
+                    #     # print("reshaped_last_frames:", reshaped_last_frames.shape)
+                    #     random = criterion(reshaped_last_frames, val_labels)
+                    #     # print("not accurate loss:", random)
 
 
-                        if loss.item() > mse_threshold:
-                            for val_output, image, label in zip(val_outputs, val_images, val_labels):
-                                bad_samples_val.append((image, label, val_output))
+                    #     if loss.item() > mse_threshold:
+                    #         for val_output, image, label in zip(val_outputs, val_images, val_labels):
+                    #             bad_samples_val.append((image, label, val_output))
 
-                        val_loss += criterion(val_outputs, val_labels).item()
+                    #     val_loss += criterion(val_outputs, val_labels).item()
 
-                        output_folder = "visualizations/validation/" + model_name+ "/both"
-                        visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
+                    #     output_folder = "visualizations/validation/" + model_name+ "/both"
+                    #     visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
 
-                        output_folder_b = "visualizations/validation/" + model_name+ "/bad"
-                        os.makedirs(output_folder_b, exist_ok=True)
+                    #     output_folder_b = "visualizations/validation/" + model_name+ "/bad"
+                    #     os.makedirs(output_folder_b, exist_ok=True)
 
-                        for idx, (image, label, y_hat) in enumerate(bad_samples_val):
-                            # print(idx)
-                            sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
-                            os.makedirs(sample_folder, exist_ok=True)
-                            visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
+                    #     for idx, (image, label, y_hat) in enumerate(bad_samples_val):
+                    #         # print(idx)
+                    #         sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                    #         os.makedirs(sample_folder, exist_ok=True)
+                    #         visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
 
                 val_loss /= len(validation_loader)
