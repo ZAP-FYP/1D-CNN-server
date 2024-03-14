@@ -66,7 +66,7 @@ def train(
                 labels = labels.to(device)
 
                 y_hat = model(images)
-                print(f'y_hat.shape {y_hat.shape} labels.shape {labels.shape}')
+                # print(f'y_hat.shape {y_hat.shape} labels.shape {labels.shape}')
                 loss = criterion(y_hat, labels)
                 train_loss += loss.item()
 
