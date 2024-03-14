@@ -96,6 +96,8 @@ def train(
 
                     val_outputs = model(val_images)
                     loss = criterion(val_outputs, val_labels)
+                    val_loss += loss.item()
+
                     # print("original loss:",loss)
                     # print("Shapes:")
                     # print("loss:", loss.shape)
@@ -116,7 +118,7 @@ def train(
                     #         for val_output, image, label in zip(val_outputs, val_images, val_labels):
                     #             bad_samples_val.append((image, label, val_output))
 
-                    #     val_loss += criterion(val_outputs, val_labels).item()
+                        # val_loss += criterion(val_outputs, val_labels).item()
 
                     #     output_folder = "visualizations/validation/" + model_name+ "/both"
                     #     visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
