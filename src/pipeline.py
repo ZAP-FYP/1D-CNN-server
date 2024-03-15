@@ -172,26 +172,26 @@ def train(
                 y_hat = model(images)
                 print(y_hat.shape)
                 loss = criterion(y_hat, labels)
-                for loss, y_hat, image, label in zip(loss, y_hat, images, labels):
-                    mse = loss.item()
-                    if mse > mse_threshold:
-                        bad_samples.append((image, label, y_hat))
+                # for loss, y_hat, image, label in zip(loss, y_hat, images, labels):
+                #     mse = loss.item()
+                #     if mse > mse_threshold:
+                #         bad_samples.append((image, label, y_hat))
 
                 se += loss.item() * labels.size(0)
                 samples_count += labels.size(0)
-                if epoch +1 >=10:
+                # if epoch +1 >=10:
 
-                    output_folder = "visualizations/test/both" + model_name
-                    visualize(images, labels, y_hat, output_folder, n_th_frame, future_f)
+                #     output_folder = "visualizations/test/both" + model_name
+                #     visualize(images, labels, y_hat, output_folder, n_th_frame, future_f)
 
-                    output_folder_b = "visualizations/test/bad/" + model_name
-                    os.makedirs(output_folder_b, exist_ok=True)
+                #     output_folder_b = "visualizations/test/bad/" + model_name
+                #     os.makedirs(output_folder_b, exist_ok=True)
 
-                    for idx, (image, label, y_hat) in enumerate(bad_samples):
-                        # print(idx)
-                        sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
-                        os.makedirs(sample_folder, exist_ok=True)
-                        visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
+                #     for idx, (image, label, y_hat) in enumerate(bad_samples):
+                #         # print(idx)
+                #         sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                #         os.makedirs(sample_folder, exist_ok=True)
+                #         visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
         mse = se / samples_count
         print(f"MSE of test data: {mse:.3f}")
