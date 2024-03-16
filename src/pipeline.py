@@ -38,6 +38,10 @@ def train(
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f'Device {device}')
+    model.to(device)
+
+
     current_epoch = 0
     total_steps = 0
 
