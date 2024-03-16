@@ -55,13 +55,13 @@ def train(
     # print(f"Model summary : {summary(model, (in_channels, in_seq_len))}")
     # torchinfo.summary(model, (in_channels, 10, 100), device="cpu")
     print(model)
-    model.train()
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
         patience = 40  # Number of consecutive epochs without improvement
         best_val_loss = float("inf")
         consecutive_no_improvement = 0
+        model = model.train()
         for epoch in range(current_epoch, num_epochs):
             train_loss = 0.0
 
@@ -90,7 +90,7 @@ def train(
             save_checkpoint(epoch, model, optimizer, checkpoint_file)
 
             with torch.no_grad():
-                model.eval()
+                # model.eval()
                 val_loss = 0.0
                 bad_samples_val =[]
                 mse_threshold = 1000
