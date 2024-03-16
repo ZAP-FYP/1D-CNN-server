@@ -55,7 +55,7 @@ def train(
     # print(f"Model summary : {summary(model, (in_channels, in_seq_len))}")
     # torchinfo.summary(model, (in_channels, 10, 100), device="cpu")
     print(model)
-
+    model.train()
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
