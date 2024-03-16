@@ -61,6 +61,7 @@ train(
     config.test_flag,
     config.n_th_frame,
     config.future_f,
+    config.visualization_flag,
     num_epochs=1000,
-    batch_size=256
+    batch_size=256,
 )
