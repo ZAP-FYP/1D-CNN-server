@@ -225,7 +225,7 @@ class VideoFrameDataset:
         
         window_size = prev_frames + future_frames
         X = [data[i : i + prev_frames] for i in range(len(data[:-window_size]))]
-
+        X_frame_diffs = [self.calculate_frame_diff(sample) for sample in X]
         # for frame_index, frame in enumerate(X_file):
             #     if np.all(frame == 0):
             #         start_index = max(0, frame_index - 10)
@@ -244,8 +244,19 @@ class VideoFrameDataset:
                 data[(i + prev_frames) : (i + prev_frames + future_frames)]
                 for i in range(len(data[:-window_size]))
             ]
+        filtered_X = []
+        filtered_y = []
+        threshold = 1200
+        print("old:",np.array(X).shape)
 
-        return np.array(X), np.array(y)
+        for i, diff in enumerate(X_frame_diffs):
+            if np.any(diff > threshold):
+                filtered_X.append(X[i])
+                filtered_y.append(y[i])
+
+        print("new:",np.array(filtered_X).shape)
+        return np.array(filtered_X), np.array(filtered_y)
+        # return np.array(X), np.array(y)
 
     def create_averaged_frames(self, data, avg_rate):
         averaged_frames = []
@@ -383,5 +394,9 @@ class VideoFrameDataset:
         save_path = os.path.join('visualization_folder', f'{filename}_{frame_index}.png')
         plt.savefig(save_path)
         plt.close()
+
+    def calculate_frame_diff(self, data):
+        # print(np.sum(np.abs(np.diff(data, axis=0)), axis=(0, 1)))
+        return np.sum(np.abs(np.diff(data, axis=0)), axis=(0, 1))
 
 
