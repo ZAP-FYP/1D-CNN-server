@@ -130,8 +130,11 @@ def train(
 
                         output_folder_b = "visualizations/validation/" + model_name+ "/bad"
                         os.makedirs(output_folder_b, exist_ok=True)
-
-                        for idx, (image, label, y_hat) in enumerate(bad_samples_val):
+                        if len(bad_samples_val)>10:
+                            samples = 5
+                        else:
+                            samples = len(bad_samples_val)
+                        for idx, (image, label, y_hat) in enumerate(bad_samples_val[-samples:]):
                             # print(idx)
                             sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
                             os.makedirs(sample_folder, exist_ok=True)
