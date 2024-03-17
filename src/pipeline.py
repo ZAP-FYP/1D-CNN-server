@@ -17,6 +17,7 @@ def train(
     test_flag,
     n_th_frame,
     future_f,
+    visualization_flag,
     num_epochs=1000,
     batch_size=25,
 ):
@@ -38,6 +39,10 @@ def train(
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f'Device {device}')
+    model.to(device)
+
+
     current_epoch = 0
     total_steps = 0
 
@@ -51,13 +56,13 @@ def train(
     # print(f"Model summary : {summary(model, (in_channels, in_seq_len))}")
     # torchinfo.summary(model, (in_channels, 10, 100), device="cpu")
     print(model)
-
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
-        patience = 40  # Number of consecutive epochs without improvement
+        patience = 40 # Number of consecutive epochs without improvement
         best_val_loss = float("inf")
         consecutive_no_improvement = 0
+        model = model.train()
         for epoch in range(current_epoch, num_epochs):
             train_loss = 0.0
 
@@ -86,7 +91,7 @@ def train(
             save_checkpoint(epoch, model, optimizer, checkpoint_file)
 
             with torch.no_grad():
-                model.eval()
+                # model.eval()
                 val_loss = 0.0
                 bad_samples_val =[]
                 mse_threshold = 1000
@@ -104,33 +109,36 @@ def train(
                     # print("val_outputs:", val_outputs.shape)
                     # print("val_images:", val_images.shape)
                     # print("val_labels:", val_labels.shape)
-                    # if epoch +1 >=10:
-                    #     batch_size = val_images.size(0)
-                    #     last_frames = val_images[:, -1, :]
-                    #     duplicated_last_frames = last_frames.repeat(1, 5)
-                    #     reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
-                    #     # print("reshaped_last_frames:", reshaped_last_frames.shape)
-                    #     random = criterion(reshaped_last_frames, val_labels)
-                    #     # print("not accurate loss:", random)
+                    if visualization_flag:
+                        batch_size = val_images.size(0)
+                        # last_frames = val_images[:, -1, :]
+                        # duplicated_last_frames = last_frames.repeat(1, 5)
+                        # reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
+                        # print("reshaped_last_frames:", reshaped_last_frames.shape)
+                        # random = criterion(reshaped_last_frames, val_labels)
+                        # print("not accurate loss:", random)
 
 
-                    #     if loss.item() > mse_threshold:
-                    #         for val_output, image, label in zip(val_outputs, val_images, val_labels):
-                    #             bad_samples_val.append((image, label, val_output))
+                        if loss.item() > mse_threshold:
+                            for val_output, image, label in zip(val_outputs, val_images, val_labels):
+                                bad_samples_val.append((image, label, val_output))
 
-                        # val_loss += criterion(val_outputs, val_labels).item()
+                        val_loss += criterion(val_outputs, val_labels).item()
 
-                    #     output_folder = "visualizations/validation/" + model_name+ "/both"
-                    #     visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
+                        output_folder = "visualizations/validation/" + model_name+ "/both"
+                        visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
 
-                    #     output_folder_b = "visualizations/validation/" + model_name+ "/bad"
-                    #     os.makedirs(output_folder_b, exist_ok=True)
-
-                    #     for idx, (image, label, y_hat) in enumerate(bad_samples_val):
-                    #         # print(idx)
-                    #         sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
-                    #         os.makedirs(sample_folder, exist_ok=True)
-                    #         visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
+                        output_folder_b = "visualizations/validation/" + model_name+ "/bad"
+                        os.makedirs(output_folder_b, exist_ok=True)
+                        if len(bad_samples_val)>10:
+                            samples = 5
+                        else:
+                            samples = len(bad_samples_val)
+                        for idx, (image, label, y_hat) in enumerate(bad_samples_val[-samples:]):
+                            # print(idx)
+                            sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                            os.makedirs(sample_folder, exist_ok=True)
+                            visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
 
                 val_loss /= len(validation_loader)
@@ -172,15 +180,15 @@ def train(
                 y_hat = model(images)
                 print(y_hat.shape)
                 loss = criterion(y_hat, labels)
-                for loss, y_hat, image, label in zip(loss, y_hat, images, labels):
-                    mse = loss.item()
-                    if mse > mse_threshold:
-                        bad_samples.append((image, label, y_hat))
+
 
                 se += loss.item() * labels.size(0)
                 samples_count += labels.size(0)
-                if epoch +1 >=10:
-
+                if visualization_flag:
+                    for loss, y_hat, image, label in zip(loss, y_hat, images, labels):
+                        mse = loss.item()
+                        if mse > mse_threshold:
+                            bad_samples.append((image, label, y_hat))
                     output_folder = "visualizations/test/both" + model_name
                     visualize(images, labels, y_hat, output_folder, n_th_frame, future_f)
 
