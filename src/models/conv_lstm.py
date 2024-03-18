@@ -239,7 +239,14 @@ class ConvLSTM1D_Attention(nn.Module):
         output = output.view(batch_size, -1)
 
         # Fully connected layer
-        output = self.fc(output)
+        # output = self.fc(output)
+        # Adding residual connection to fcn
+        input_x = x
+        selected_array = input_x[:, -1:, :] 
+        reshaped = selected_array.repeat(1, 5, 1)        # Replicate it 5 times along the specified dimension (dimension 1 in this case)
+        reshaped = torch.flatten(reshaped, 1)
+        output = self.fc(output) + reshaped
+
 
         return output
 
