@@ -24,7 +24,10 @@ def train(
     checkpoint_file = "model/" + model_name + "/model_checkpoint.pth"
     if not os.path.exists("model/" + model_name):
         os.makedirs("model/" + model_name)
-    f = open("model/" + model_name + "/log.txt", "w")
+        f = open("model/" + model_name + "/log.txt", "w")
+    else:
+        f = open("model/" + model_name + "/log.txt", "a")
+
     original = sys.stdout
     sys.stdout = Tee(sys.stdout, f)
 
