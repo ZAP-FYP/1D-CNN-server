@@ -24,18 +24,21 @@ if config.dataset_type == 'simple':
     dataset = SimpleFrameDataset(
         frame_length=100,
         car_width=20,
+        car_height = 10,
         min_velocity=1,
         max_velocity=5,
-        num_frames=100,
+        num_frames=200,
         window_x=10,
         window_y=5,
         num_duplicates=20,
         train_frame_start=0,
         val_frame_start=60,
         test_frame_start=80,
-        horizontal_velocity=1,
+        horizontal_velocity=5,
         vertical_velocity=1,
-        acceleration=False,
+        acceleration=True,
+        modify_frame_width=True, 
+        modify_frame_height=True
     )
 elif config.dataset_type == 'video':
     dataset = VideoFrameDataset(

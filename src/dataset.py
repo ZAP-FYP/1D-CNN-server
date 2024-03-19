@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
+import random
 
 class DrivableAreaDataset(Dataset):
     def __init__(self, X, y):
@@ -23,6 +23,7 @@ class SimpleFrameDataset:
         self,
         frame_length,
         car_width,
+        car_height,
         min_velocity,
         max_velocity,
         num_frames,
@@ -36,9 +37,12 @@ class SimpleFrameDataset:
         horizontal_velocity=1,
         vertical_velocity=1,
         acceleration=False,
+        modify_frame_width = False,
+        modify_frame_height = False
     ):
         self.frame_length = frame_length
         self.car_width = car_width
+        self.car_height = car_height
         self.min_velocity = min_velocity
         self.max_velocity = max_velocity
         self.num_frames = num_frames
@@ -53,52 +57,62 @@ class SimpleFrameDataset:
         self.horizontal_velocity = horizontal_velocity
         self.vertical_velocity = vertical_velocity
         self.acceleration = acceleration
+        self.modify_frame_width = modify_frame_width
+        self.modify_frame_height = modify_frame_height
 
         self.create_dataset()
 
     @staticmethod
-    def generate_base_frame(frame_length, car_width):
+    def generate_base_frame(frame_length, car_width, car_height):
         base_frame = np.zeros(frame_length)
         car_start = frame_length - car_width - 5
-        base_frame[car_start : car_start + car_width] = 10
+        base_frame[car_start : car_start + car_width] = car_height
         return base_frame
+    
 
-    @staticmethod
+    # @staticmethod
     def generate_moved_frame(
+        self,
         base_frame,
         horizontal_velocity,
         vertical_velocity,
+        car_width,
+        car_start,
+        car_height,
         noise_factor=0.1,
-        noise_flag=False,
+        noise_flag=False
     ):
         moved_frame = np.copy(base_frame)
 
         if horizontal_velocity > 0:
-            if np.any(moved_frame[:-horizontal_velocity]):
-                moved_frame = np.roll(base_frame, shift=-horizontal_velocity)
-            else:
-                moved_frame[horizontal_velocity:] = base_frame[:-horizontal_velocity]
-        elif horizontal_velocity < 0:
             if np.any(moved_frame[-horizontal_velocity:]):
                 moved_frame = np.roll(base_frame, shift=-horizontal_velocity)
             else:
                 moved_frame[:horizontal_velocity] = base_frame[-horizontal_velocity:]
 
+        elif horizontal_velocity < 0:
+            if np.any(moved_frame[:-horizontal_velocity]):
+                moved_frame = np.roll(base_frame, shift=-horizontal_velocity)
+            else:
+                moved_frame[horizontal_velocity:] = base_frame[:-horizontal_velocity]
         moved_frame += vertical_velocity
         if noise_flag:
             noise = np.random.normal(scale=noise_factor, size=moved_frame.shape)
             moved_frame += noise
+        
+        if self.modify_frame_width:
+            moved_frame[car_start : car_start + car_width] = car_height
 
         return moved_frame
 
     def generate_frames(self):
-        base_frame = self.generate_base_frame(self.frame_length, self.car_width)
+        base_frame = self.generate_base_frame(self.frame_length, self.car_width, self.car_height)
         frames = [base_frame]
 
         if self.acceleration:
-            acceleration_frames = 300
-            constant_velocity_frames = 0
-            deceleration_frames = 0
+            acceleration_frames = 20
+            constant_velocity_frames = 10
+            deceleration_frames = 20
 
             pattern = np.concatenate(
                 [
@@ -116,13 +130,41 @@ class SimpleFrameDataset:
         else:
             velocity_sequence = np.full(self.num_frames, self.vertical_velocity)
 
+        car_width_increment = 7
+        car_height_increment = 2
+        current_car_start = self.frame_length - self.car_width - 1
+        current_car_width = self.car_width
+        current_car_height = self.car_height
+
+
         for i in range(self.num_frames):
+            if self.horizontal_velocity > 0:
+                horizontal_velocity = random.randint(0, self.horizontal_velocity)
+            elif self.horizontal_velocity < 0:
+                horizontal_velocity = random.randint(self.horizontal_velocity, 0)
+            else:
+                horizontal_velocity = self.horizontal_velocity
+            
+            # if self.modify_frame_height:
+            #     current_car_height += car_height_increment
+
             frame = self.generate_moved_frame(
                 frames[-1],
-                self.horizontal_velocity,
+                horizontal_velocity,
                 velocity_sequence[i],
+                current_car_width,
+                current_car_start,
+                current_car_height,
                 noise_flag=True,
             )
+
+            if self.modify_frame_width:
+                current_car_start += self.horizontal_velocity
+                current_car_width += car_width_increment
+                # if current_car_width >= self.frame_length // 2:
+                #     current_car_width -= car_width_increment
+            
+
             frames.append(frame)
 
         self.frames = frames
@@ -181,7 +223,7 @@ class SimpleFrameDataset:
             plt.title("Sequence of Frames with Car Movement")
             plt.xlabel("Position")
             plt.ylabel("Value")
-            plt.legend()
+            # plt.legend()
 
         if save_path:
             plt.savefig(save_path)
@@ -193,6 +235,7 @@ class SimpleFrameDataset:
         self.generate_frames()
         self.split_frames()
         self.create_numpy_arrays()
+        self.visualize_frames()
         self.train_dataset = DrivableAreaDataset(self.x_train_duplicate, self.flatten_y)
         self.validation_dataset = DrivableAreaDataset(self.x_val, self.flatten_y_val)
         self.test_dataset = DrivableAreaDataset(self.x_test, self.flatten_y_test)

@@ -24,7 +24,10 @@ def train(
     checkpoint_file = "model/" + model_name + "/model_checkpoint.pth"
     if not os.path.exists("model/" + model_name):
         os.makedirs("model/" + model_name)
-    f = open("model/" + model_name + "/log.txt", "w")
+        f = open("model/" + model_name + "/log.txt", "w")
+    else:
+        f = open("model/" + model_name + "/log.txt", "a")
+
     original = sys.stdout
     sys.stdout = Tee(sys.stdout, f)
 
@@ -166,10 +169,11 @@ def train(
             print(f"best_val_loss {best_val_loss}")
 
     if test_flag:
+        print("Starting testing...")
         model.eval()
         se = 0
         samples_count = 0
-        mse_threshold = 1000
+        mse_threshold = 10
         bad_samples = []
 
         with torch.no_grad():
@@ -178,7 +182,6 @@ def train(
                 labels = labels.to(device)
 
                 y_hat = model(images)
-                print(y_hat.shape)
                 loss = criterion(y_hat, labels)
 
 
