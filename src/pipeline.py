@@ -160,6 +160,7 @@ def train(
             print(f"best_val_loss {best_val_loss}")
 
     if test_flag:
+        print("Starting testing...")
         model.eval()
         se = 0
         samples_count = 0
