@@ -45,7 +45,6 @@ def train(
     print(f'Device {device}')
     model.to(device)
 
-
     current_epoch = 0
     total_steps = 0
 
@@ -62,7 +61,7 @@ def train(
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
-        patience = 40 # Number of consecutive epochs without improvement
+        patience = 5 # Number of consecutive epochs without improvement
         best_val_loss = float("inf")
         consecutive_no_improvement = 0
         model = model.train()
@@ -106,42 +105,34 @@ def train(
                     loss = criterion(val_outputs, val_labels)
                     val_loss += loss.item()
 
-                    # print("original loss:",loss)
-                    # print("Shapes:")
-                    # print("loss:", loss.shape)
-                    # print("val_outputs:", val_outputs.shape)
-                    # print("val_images:", val_images.shape)
-                    # print("val_labels:", val_labels.shape)
-                    if visualization_flag:
-                        batch_size = val_images.size(0)
-                        # last_frames = val_images[:, -1, :]
-                        # duplicated_last_frames = last_frames.repeat(1, 5)
-                        # reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
-                        # print("reshaped_last_frames:", reshaped_last_frames.shape)
-                        # random = criterion(reshaped_last_frames, val_labels)
-                        # print("not accurate loss:", random)
+                    print("original loss:",loss)
 
+                    batch_size = val_images.size(0)
+                    last_frames = val_images[:, -1, :]
+                    duplicated_last_frames = last_frames.repeat(1, 5)
+                    reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
+                    random = criterion(reshaped_last_frames, val_labels)
+                    print("not accurate loss(last frame):", random)
 
-                        if loss.item() > mse_threshold:
-                            for val_output, image, label in zip(val_outputs, val_images, val_labels):
-                                bad_samples_val.append((image, label, val_output))
+                    # if visualization_flag:
+                    #     if loss.item() > mse_threshold:
+                    #         for val_output, image, label in zip(val_outputs, val_images, val_labels):
+                    #             bad_samples_val.append((image, label, val_output))
 
-                        val_loss += criterion(val_outputs, val_labels).item()
+                    #     output_folder = "visualizations/validation/" + model_name+ "/both"
+                    #     visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
 
-                        output_folder = "visualizations/validation/" + model_name+ "/both"
-                        visualize(val_images[-5:], val_labels[-5:], val_outputs[-5:], output_folder, n_th_frame, future_f)
-
-                        output_folder_b = "visualizations/validation/" + model_name+ "/bad"
-                        os.makedirs(output_folder_b, exist_ok=True)
-                        if len(bad_samples_val)>10:
-                            samples = 5
-                        else:
-                            samples = len(bad_samples_val)
-                        for idx, (image, label, y_hat) in enumerate(bad_samples_val[-samples:]):
-                            # print(idx)
-                            sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
-                            os.makedirs(sample_folder, exist_ok=True)
-                            visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
+                    #     output_folder_b = "visualizations/validation/" + model_name+ "/bad"
+                    #     os.makedirs(output_folder_b, exist_ok=True)
+                    #     if len(bad_samples_val)>10:
+                    #         samples = 5
+                    #     else:
+                    #         samples = len(bad_samples_val)
+                    #     for idx, (image, label, y_hat) in enumerate(bad_samples_val[-samples:]):
+                    #         # print(idx)
+                    #         sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                    #         os.makedirs(sample_folder, exist_ok=True)
+                    #         visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
 
                 val_loss /= len(validation_loader)
@@ -172,8 +163,9 @@ def train(
         model.eval()
         se = 0
         samples_count = 0
-        mse_threshold = 1000
+        mse_threshold = 6
         bad_samples = []
+        good_samples = []
 
         with torch.no_grad():
             for images, labels in test_loader:
@@ -181,28 +173,35 @@ def train(
                 labels = labels.to(device)
 
                 y_hat = model(images)
-                print(y_hat.shape)
-                loss = criterion(y_hat, labels)
+                batch_loss = criterion(y_hat, labels)
 
-
-                se += loss.item() * labels.size(0)
+                se += batch_loss.item() * labels.size(0)
                 samples_count += labels.size(0)
-                if visualization_flag:
-                    for loss, y_hat, image, label in zip(loss, y_hat, images, labels):
-                        mse = loss.item()
-                        if mse > mse_threshold:
-                            bad_samples.append((image, label, y_hat))
-                    output_folder = "visualizations/test/both" + model_name
-                    visualize(images, labels, y_hat, output_folder, n_th_frame, future_f)
 
-                    output_folder_b = "visualizations/test/bad/" + model_name
-                    os.makedirs(output_folder_b, exist_ok=True)
+                if batch_loss.item() > mse_threshold:
+                    for y_pred, image, label in zip(y_hat, images, labels):
+                        bad_samples.append((image, label, y_pred))
+                else:
+                    for y_pred, image, label in zip(y_hat, images, labels):
+                        good_samples.append((image, label, y_pred))
 
-                    for idx, (image, label, y_hat) in enumerate(bad_samples):
-                        # print(idx)
-                        sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
-                        os.makedirs(sample_folder, exist_ok=True)
-                        visualize(image.unsqueeze(0), label.unsqueeze(0), y_hat.unsqueeze(0), sample_folder, n_th_frame, future_f)
+        # Save visualizations
+        if visualization_flag:
+            output_folder_b = "visualizations/test/bad/" + model_name
+            os.makedirs(output_folder_b, exist_ok=True)
+
+            output_folder_g = "visualizations/test/good/" + model_name
+            os.makedirs(output_folder_g, exist_ok=True)
+
+            for idx, (image, label, y_pred) in enumerate(bad_samples):
+                sample_folder = os.path.join(output_folder_b, f"sample_{idx}")
+                os.makedirs(sample_folder, exist_ok=True)
+                visualize(image.unsqueeze(0), label.unsqueeze(0), y_pred.unsqueeze(0), sample_folder, n_th_frame, future_f)
+            
+            for idx, (image, label, y_pred) in enumerate(good_samples):
+                sample_folder = os.path.join(output_folder_g, f"sample_{idx}")
+                os.makedirs(sample_folder, exist_ok=True)
+                visualize(image.unsqueeze(0), label.unsqueeze(0), y_pred.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
         mse = se / samples_count
         print(f"MSE of test data: {mse:.3f}")
