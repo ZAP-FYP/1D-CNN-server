@@ -1,6 +1,6 @@
 from src.models.conv_lstm import ConvLSTM1D,  ConvLSTM1D_Attention
 from src.pipeline import train
-from src.dataset import SimpleFrameDataset, VideoFrameDataset
+from src.dataset import SimpleFrameDataset, VideoFrameDataset, CollisionDataset
 import torch.nn as nn
 import torch
 from src.config import Config
@@ -48,7 +48,17 @@ elif config.dataset_type == 'video':
         prev_frames=config.prev_f,
         future_frames=config.future_f,
     )
+elif config.dataset_type == 'collision':
+    dataset = CollisionDataset(
+        directory_path="ego_accidents_labelled",
+        split_ratio=0.80,
+        test_flag=config.test_flag,
+        DRR=config.DRR,
+        frame_avg_rate=config.frame_avg_rate,
+        prev_frames=config.prev_f
+    )
 
+print(config.dataset_type)
 print(config.model_name)
 print("nth", config.n_th_frame)
 train(
