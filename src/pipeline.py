@@ -5,7 +5,9 @@ import sys
 from src.tee import Tee
 import matplotlib.pyplot as plt
 from datetime import datetime
+from src.config import Config 
 
+config = Config()
 
 def train(
     dataset,
@@ -21,7 +23,9 @@ def train(
     num_epochs=1000,
     batch_size=25,
 ):
+    
     checkpoint_file = "model/" + model_name + "/model_checkpoint.pth"
+
     if not os.path.exists("model/" + model_name):
         os.makedirs("model/" + model_name)
         f = open("model/" + model_name + "/log.txt", "w")
@@ -70,10 +74,15 @@ def train(
 
             for i, (images, labels) in enumerate(train_loader):
                 images = images.to(device)
-                labels = labels.to(device)
+
+                if config.collision_flag:
+                    labels = labels.unsqueeze(1).to(device)
+                else:
+                    labels = labels.to(device)
 
                 y_hat = model(images)
                 # print(f'y_hat.shape {y_hat.shape} labels.shape {labels.shape}')
+                
                 loss = criterion(y_hat, labels)
                 train_loss += loss.item()
 
@@ -99,20 +108,26 @@ def train(
                 mse_threshold = 1000
                 for i, (val_images, val_labels) in enumerate(validation_loader):
                     val_images = val_images.to(device)
-                    val_labels = val_labels.to(device)
+
+                    if config.collision_flag:
+                        val_labels = val_labels.unsqueeze(1).to(device)
+                    else:
+                        val_labels = val_labels.to(device)
 
                     val_outputs = model(val_images)
+                    # print(f'Val - y_hat.shape {val_outputs.shape} labels.shape {val_labels.shape}')
                     loss = criterion(val_outputs, val_labels)
+
                     val_loss += loss.item()
 
-                    print("original loss:",loss)
+                    # print("original loss:",loss)
 
                     batch_size = val_images.size(0)
-                    last_frames = val_images[:, -1, :]
-                    duplicated_last_frames = last_frames.repeat(1, 5)
-                    reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
-                    random = criterion(reshaped_last_frames, val_labels)
-                    print("not accurate loss(last frame):", random)
+                    # last_frames = val_images[:, -1, :]
+                    # duplicated_last_frames = last_frames.repeat(1, 5)
+                    # reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
+                    # random = criterion(reshaped_last_frames, val_labels)
+                    # print("not accurate loss(last frame):", random)
 
                     # if visualization_flag:
                     #     if loss.item() > mse_threshold:
@@ -171,7 +186,11 @@ def train(
         with torch.no_grad():
             for images, labels in test_loader:
                 images = images.to(device)
-                labels = labels.to(device)
+                
+                if config.collision_flag:
+                    labels = labels.unsqueeze(1).to(device)
+                else:
+                    labels = labels.to(device)
 
                 y_hat = model(images)
                 batch_loss = criterion(y_hat, labels)
