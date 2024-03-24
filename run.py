@@ -47,9 +47,11 @@ elif config.dataset_type == 'video':
         frame_avg_rate=config.frame_avg_rate,
         prev_frames=config.prev_f,
         future_frames=config.future_f,
+        threshold=config.filtering_thresold
     )
 elif config.dataset_type == 'collision':
     dataset = CollisionDataset(
+
         directory_path=config.dataset_path,
         split_ratio=0.80,
         test_flag=config.test_flag,
@@ -61,6 +63,7 @@ elif config.dataset_type == 'collision':
 print(config.dataset_type)
 print(config.model_name)
 print("nth", config.n_th_frame)
+print("thresold", config.filtering_thresold)
 train(
     dataset,
     criterion,
