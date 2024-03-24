@@ -6,6 +6,7 @@ from src.tee import Tee
 import matplotlib.pyplot as plt
 from datetime import datetime
 from src.config import Config 
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 config = Config()
 
@@ -106,6 +107,10 @@ def train(
                 val_loss = 0.0
                 bad_samples_val =[]
                 mse_threshold = 1000
+
+                predictions = []
+                true_labels = []
+                
                 for i, (val_images, val_labels) in enumerate(validation_loader):
                     val_images = val_images.to(device)
 
@@ -119,6 +124,10 @@ def train(
                     loss = criterion(val_outputs, val_labels)
 
                     val_loss += loss.item()
+
+                    _, predicted = torch.max(val_outputs, 1)
+                    true_labels.extend(val_labels.cpu().numpy())
+                    predictions.extend(predicted.cpu().numpy())
 
                     # print("original loss:",loss)
 
@@ -152,8 +161,14 @@ def train(
 
                 val_loss /= len(validation_loader)
 
+                accuracy = accuracy_score(true_labels, predictions)
+                precision = precision_score(true_labels, predictions, average='weighted')
+                recall = recall_score(true_labels, predictions, average='weighted')
+                f1 = f1_score(true_labels, predictions, average='weighted')
+
+
             print(
-                f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.4f} Validation Loss: {val_loss:.4f}"
+                f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f} \n Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}"
             )
 
             if val_loss < best_val_loss:
