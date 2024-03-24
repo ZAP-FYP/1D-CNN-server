@@ -226,6 +226,7 @@ class VideoFrameDataset:
         window_size = prev_frames + future_frames
         X = [data[i : i + prev_frames] for i in range(len(data[:-window_size]))]
         X_frame_diffs = [self.calculate_frame_diff(sample) for sample in X]
+        print(X_frame_diffs[:10])
         # for frame_index, frame in enumerate(X_file):
             #     if np.all(frame == 0):
             #         start_index = max(0, frame_index - 10)
@@ -249,10 +250,16 @@ class VideoFrameDataset:
         threshold = 1200
         print("old:",np.array(X).shape)
 
-        for i, diff in enumerate(X_frame_diffs):
-            if np.any(diff > threshold):
-                filtered_X.append(X[i])
-                filtered_y.append(y[i])
+        with open("filtered_data.txt", "w") as file:
+            for i, diff in enumerate(X_frame_diffs):
+                file.write(f"i: {i}, diff: {diff}\n")
+                
+                # Check if any element in diff is greater than threshold
+                if np.any(diff > threshold):
+                    # Append corresponding X and y values to filtered lists
+                    filtered_X.append(X[i])
+                    filtered_y.append(y[i])
+
 
         print("new:",np.array(filtered_X).shape)
         return np.array(filtered_X), np.array(filtered_y)

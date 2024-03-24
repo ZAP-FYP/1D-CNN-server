@@ -1,18 +1,22 @@
-from src.models.conv_lstm import ConvLSTM1D
+from src.models.conv_lstm import ConvLSTM1D,  ConvLSTM1D_Attention
 from src.pipeline import train
-from src.dataset import SimpleFrameDataset, VideoFrameDataset
+from src.dataset import SimpleFrameDataset, VideoFrameDataset, CollisionDataset
 import torch.nn as nn
 import torch
 from src.config import Config
 
 config = Config()
 
+
 input_size = 100
 hidden_size = 500
 kernel_size = 3
 num_layers = 3
 learning_rate = 0.001
-model = ConvLSTM1D(input_size, hidden_size, kernel_size, num_layers)
+bidirectional = False
+
+model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+# model = ConvLSTM1D(input_size, hidden_size, kernel_size, num_layers)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -44,7 +48,17 @@ elif config.dataset_type == 'video':
         prev_frames=config.prev_f,
         future_frames=config.future_f,
     )
+elif config.dataset_type == 'collision':
+    dataset = CollisionDataset(
+        directory_path="ego_accidents_labelled",
+        split_ratio=0.80,
+        test_flag=config.test_flag,
+        DRR=config.DRR,
+        frame_avg_rate=config.frame_avg_rate,
+        prev_frames=config.prev_f
+    )
 
+print(config.dataset_type)
 print(config.model_name)
 print("nth", config.n_th_frame)
 train(
@@ -57,6 +71,7 @@ train(
     config.test_flag,
     config.n_th_frame,
     config.future_f,
+    config.visualization_flag,
     num_epochs=1000,
-    batch_size=256
+    batch_size=256,
 )
