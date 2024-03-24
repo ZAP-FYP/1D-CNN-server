@@ -50,7 +50,8 @@ elif config.dataset_type == 'video':
     )
 elif config.dataset_type == 'collision':
     dataset = CollisionDataset(
-        directory_path="ego_accidents_labelled",
+
+        directory_path=config.dataset_path,
         split_ratio=0.80,
         test_flag=config.test_flag,
         DRR=config.DRR,

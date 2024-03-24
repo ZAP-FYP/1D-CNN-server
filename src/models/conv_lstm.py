@@ -87,9 +87,7 @@
 
 import torch
 import torch.nn as nn
-
-import torch
-import torch.nn as nn
+import torch.nn.functional as F
 
 class ConvLSTM1D(nn.Module):
     def __init__(
@@ -151,7 +149,104 @@ class ConvLSTM1D(nn.Module):
         output = output.view(batch_size, -1)
 
         # Fully connected layer
-        output = self.fc(output)
+        # output = self.fc(output)
+        # Adding residual connection to fcn
+        input_x = x
+        selected_array = input_x[:, -1:, :] 
+        reshaped = selected_array.repeat(1, 5, 1)        # Replicate it 5 times along the specified dimension (dimension 1 in this case)
+        reshaped = torch.flatten(reshaped, 1)
+        output = self.fc(output) + reshaped
+
+        return output
+class Attention(nn.Module):
+    def __init__(self, hidden_size):
+        super(Attention, self).__init__()
+        self.hidden_size = hidden_size
+        self.attn = nn.Linear(hidden_size, 1)
+
+    def forward(self, lstm_out):
+        # lstm_out shape: (batch_size, seq_len, hidden_size)
+        attn_weights = F.softmax(self.attn(lstm_out), dim=1)
+        # Multiply each LSTM output by its corresponding attention weight
+        weighted_out = torch.mul(lstm_out, attn_weights)
+        # Sum the weighted outputs along the sequence length dimension
+        context_vector = torch.sum(weighted_out, dim=1)
+        return context_vector
+
+
+class ConvLSTM1D_Attention(nn.Module):
+    def __init__(
+        self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
+    ):
+        super(ConvLSTM1D_Attention, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.kernel_size = kernel_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+
+        # Convolutional LSTM layers
+        self.conv_layer = nn.Conv1d(
+            in_channels=10, out_channels=1, kernel_size=5, stride=1, padding=2
+        )
+        self.relu = nn.ReLU()
+        self.conv_lstm = nn.LSTM(
+            1,  # Change input size to 1
+            hidden_size,
+            num_layers,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
+
+        # Attention mechanism
+        self.attention = Attention(hidden_size)
+
+        # Adjust the size of the fully connected layer output accordingly
+        fc_input_size = hidden_size
+        self.fc = nn.Linear(fc_input_size * input_size, 500)  # Adjusting input size
+
+    def forward(self, x):
+        # Input shape: (batch_size, sequence_length, input_size)
+
+        # Initialize hidden and cell states
+        batch_size, _, _ = x.size()
+        num_directions = 2 if self.bidirectional else 1
+        h0 = torch.zeros(
+            self.num_layers * num_directions, batch_size, self.hidden_size
+        ).to(x.device)
+        c0 = torch.zeros(
+            self.num_layers * num_directions, batch_size, self.hidden_size
+        ).to(x.device)
+
+        # Process each channel sequentially
+        outputs = []
+        for i in range(x.size(2)):
+            x_channel = x[:, :, i].unsqueeze(2)  # Select one channel
+            x_channel = self.conv_layer(x_channel)  # Apply convolution
+            x_channel = self.relu(x_channel)  # Apply ReLU
+            x_channel = x_channel.permute(0, 2, 1)  # Reshape for LSTM
+            lstm_out, _ = self.conv_lstm(x_channel, (h0, c0))  # ConvLSTM forward pass
+
+            # Apply attention mechanism
+            context_vector = self.attention(lstm_out)
+
+            outputs.append(context_vector)
+
+        # Concatenate outputs from all channels
+        output = torch.cat(outputs, dim=1)
+
+        # Reshape output to match the input size of fully connected layer
+        output = output.view(batch_size, -1)
+
+        # Fully connected layer
+        # output = self.fc(output)
+        # Adding residual connection to fcn
+        input_x = x
+        selected_array = input_x[:, -1:, :] 
+        reshaped = selected_array.repeat(1, 5, 1)        # Replicate it 5 times along the specified dimension (dimension 1 in this case)
+        reshaped = torch.flatten(reshaped, 1)
+        output = self.fc(output) + reshaped
+
 
         return output
 

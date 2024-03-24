@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
+import json
 
 class DrivableAreaDataset(Dataset):
     def __init__(self, X, y):
@@ -407,3 +407,182 @@ class VideoFrameDataset:
         return np.sum(np.abs(np.diff(data, axis=0)), axis=(0, 1))
 
 
+class CollisionDataset:
+    def __init__(
+        self,
+        directory_path,
+        split_ratio=0.80,
+        test_flag=False,
+        DRR=0,
+        frame_avg_rate=0,
+        prev_frames=10,
+    ):
+        self.directory_path = directory_path
+        self.split_ratio = split_ratio
+        self.test_flag = test_flag
+        self.DRR = DRR
+        self.frame_avg_rate = frame_avg_rate
+        self.prev_frames = prev_frames
+
+        self.create_dataset()
+
+    def get_X_y(self, data):
+        X = []
+        y = []
+
+        for i in range(len(data) - self.prev_frames):
+            # Extract the previous frames for each sample
+            x_frames = [frame['numpy_coordinates'] for frame in data[i:i + self.prev_frames]]
+            X.append(x_frames)
+
+            # Calculate y based on the new criteria
+            labels = [frame['prediction_label'] for frame in data[i:i + self.prev_frames]]
+            if sum(labels) >= 5:
+                y.append(1)
+            else:
+                y.append(0)
+
+        return np.array(X), np.array(y)
+
+    def create_averaged_frames(self, data, avg_rate):
+        averaged_frames = []
+        frame_id_counter = 0
+
+        for i in range(0, len(data), avg_rate):
+            frames_subset = [frame['numpy_coordinates'] for frame in data[i:i+avg_rate]]
+            averaged_frame = np.mean(frames_subset, axis=0)
+
+            # Average the prediction labels
+            labels_subset = [frame['prediction_label'] for frame in data[i:i+avg_rate]]
+            averaged_label = 1 if np.mean(labels_subset) >= 0.5 else 0
+
+            # Assign the new frame_id
+            new_frame_id = frame_id_counter
+            frame_id_counter += 1
+
+            averaged_frames.append({
+                'frame_id': new_frame_id,
+                'numpy_coordinates': averaged_frame,
+                'prediction_label': averaged_label
+            })
+
+        return averaged_frames
+
+    def create_dataset(self):
+        total_data = []
+        X = []
+        y = []
+
+        filenames = [
+            f for f in os.listdir(self.directory_path) if not f.startswith(".DS_Store")
+        ]
+
+        for _file in filenames:
+            file = os.path.join(self.directory_path, _file)
+            with open(file, 'r') as f:
+                data = json.load(f)
+
+            if self.frame_avg_rate > 0:
+                averaged_frames = self.create_averaged_frames(data, self.frame_avg_rate)
+                X_file, y_file = self.get_X_y(averaged_frames)
+                print("camme")
+            else:
+                X_file, y_file = self.get_X_y(data)
+            
+            total_data.extend(data)
+            X.extend(X_file)
+            y.extend(y_file)
+
+        X = np.array(X)
+        y = np.array(y)
+
+        print("total data: ", np.array(total_data).shape)
+        print(f"X shape: {X.shape}, y shape: {y.shape}")
+        np.save("X.npy", X)
+        np.save("y.npy", y)
+        # Convert X to a list of lists
+        # Convert numpy arrays to lists
+        data_list = []
+
+        for i in range(10):
+            x_data = X[i].tolist()  # Convert numpy array to list
+            y_data = y[i].item()    # Convert numpy int64 to Python int
+            data_list.append({"X": x_data, "y": y_data})
+
+        # Save data as JSON
+        with open("data.json", "w") as json_file:
+            json.dump(data_list, json_file,indent=4)
+
+        count, self.in_channels, self.in_seq_len = X.shape
+
+        if not self.test_flag:
+            idx = int(count)
+        else:
+            idx = int(count * self.split_ratio)
+
+        val_idx = int(idx * self.split_ratio)
+
+        if self.DRR == 0:
+            self.train_dataset = DrivableDataset(X[:val_idx:], y[:val_idx:])
+            self.validation_dataset = DrivableDataset(
+                X[val_idx:idx:], y[val_idx:idx:]
+            )
+            self.test_dataset = DrivableDataset(
+                X[idx ::], y[idx ::]
+            )
+        else:
+            self.train_dataset = DrivableDataset(
+                X[: val_idx : self.DRR], y[: val_idx : self.DRR]
+            )
+            self.validation_dataset = DrivableDataset(
+                X[val_idx : idx : self.DRR], y[val_idx : idx : self.DRR]
+            )
+            self.test_dataset = DrivableDataset(
+                X[idx :: self.DRR], y[idx :: self.DRR]
+            )
+
+        print(f'Train samples {len(self.train_dataset)}')
+        print(f'Validation samples {len(self.validation_dataset)}')
+        print(f'Test samples {len(self.test_dataset)}')
+
+class DrivableDataset(Dataset):
+    def __init__(self, X, y):
+        self.X = torch.from_numpy(X).float().requires_grad_()
+        self.y = torch.from_numpy(y).float().requires_grad_()
+        self.n_samples = X.shape[0]
+
+    def __getitem__(self, index):
+        return self.X[index], self.y[index]
+
+    def __len__(self):
+        return self.n_samples
+
+    def visualize(self, x, y, output_folder):
+        num_samples, num_frames_x, frame_length_x = x.shape
+
+        for sample_index in range(num_samples):
+            sample_folder = os.path.join(output_folder, f"sample_{sample_index}")
+            os.makedirs(sample_folder, exist_ok=True)
+
+            fig, axes = plt.subplots(2, 1, figsize=(15, 8))
+
+            # Plot x
+            for frame_index in range(num_frames_x):
+                x_frame = x[sample_index, frame_index]
+                axes[0].plot(x_frame, label=f"Frame {frame_index} - Input (x)")
+            axes[0].set_xlabel("Time Steps")
+            axes[0].set_ylabel("Values")
+            axes[0].legend()
+
+            # Plot y
+            y_value = y[sample_index]
+            axes[1].plot([0, num_frames_x], [y_value, y_value], color="red", label="Output (y)")
+            axes[1].set_xlabel("Time Steps")
+            axes[1].set_ylabel("Event")
+            axes[1].legend()
+
+            plt.tight_layout()
+
+            # Save the figure
+            plt.savefig(os.path.join(sample_folder, f"sample_{sample_index}_visualization.png"))
+            plt.close()
