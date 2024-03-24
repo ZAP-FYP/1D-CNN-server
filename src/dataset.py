@@ -293,7 +293,7 @@ class VideoFrameDataset:
 
             if self.frame_avg_rate > 0:
                 averaged_frames = self.create_averaged_frames(data_npy, self.frame_avg_rate)
-                X_file, y_file = self.get_X_y(averaged_frames, self.prev_frames, self.future_frames)
+                X_file, y_file = self.get_X_y(averaged_frames, self.prev_frames, self.future_frames,self.threshold)
                 # print("averaged_frames:", averaged_frames.shape)
             elif self.frame_avg_rate == 0:
                 X_file, y_file = self.get_X_y(data_npy, self.prev_frames, self.future_frames, self.threshold)
