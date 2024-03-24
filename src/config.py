@@ -17,6 +17,7 @@ class Config:
             self.dataset_type = config("DATASET_TYPE")
             self.dataset_path = config("DATASET_PATH")
             self.visualization_flag = config("VISUALIZATION_FLAG", cast=bool)
+            self.filtering_thresold = config("FILTERING_THRESOLD")
 
 
         except UndefinedValueError as e:
