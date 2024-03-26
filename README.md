@@ -24,3 +24,22 @@ This repository contains the deep learning models and techniques used to predict
    python3 run.py
    ```
 
+## To Run a Collision Classifier
+
+### Running a pretrained Collision Classifier
+
+1. Modify the following environment variables - 
+```
+COLLISION_FLAG = True
+PRETRAINED_FLAG = True
+DATASET_TYPE = "collision"
+DATASET_PATH = "path/to/collision/data"
+```
+
+2. Run the module
+   ```
+   python3 run.py
+   ```
+
+
+

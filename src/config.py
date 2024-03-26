@@ -14,9 +14,13 @@ class Config:
             self.frame_avg_rate = config("FRAME_AVG_RATE", cast=int)
             self.DRR = config("DATA_REDUCTION_RATE", cast=int)
             self.model_name = config("MODEL_NAME")
+            self.collision_model_name = config("COLLISION_MODEL_NAME")
             self.dataset_type = config("DATASET_TYPE")
             self.dataset_path = config("DATASET_PATH")
             self.visualization_flag = config("VISUALIZATION_FLAG", cast=bool)
+            self.collision_flag = config("COLLISION_FLAG", cast=bool)
+            self.patience = config("PATIENCE", cast=int)
+            self.pretrained_flag = config("PRETRAINED_FLAG", cast=bool)
             self.filtering_thresold = config("FILTERING_THRESOLD")
 
 
