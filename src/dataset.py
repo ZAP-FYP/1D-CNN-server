@@ -463,7 +463,6 @@ class CollisionDataset:
             if self.frame_avg_rate > 0:
                 averaged_frames = self.create_averaged_frames(data, self.frame_avg_rate)
                 X_file, y_file = self.get_X_y(averaged_frames)
-                print("camme")
             else:
                 X_file, y_file = self.get_X_y(data)
             
@@ -476,6 +475,7 @@ class CollisionDataset:
 
         print("total data: ", np.array(total_data).shape)
         print(f"X shape: {X.shape}, y shape: {y.shape}")
+        # print(y)
         np.save("X.npy", X)
         np.save("y.npy", y)
         # Convert X to a list of lists

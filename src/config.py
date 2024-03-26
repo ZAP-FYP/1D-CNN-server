@@ -19,6 +19,8 @@ class Config:
             self.dataset_path = config("DATASET_PATH")
             self.visualization_flag = config("VISUALIZATION_FLAG", cast=bool)
             self.collision_flag = config("COLLISION_FLAG", cast=bool)
+            self.patience = config("PATIENCE", cast=int)
+            self.pretrained_flag = config("PRETRAINED_FLAG", cast=bool)
 
 
         except UndefinedValueError as e:

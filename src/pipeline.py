@@ -66,7 +66,7 @@ def train(
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
-        patience = 5 # Number of consecutive epochs without improvement
+        patience = config.patience # Number of consecutive epochs without improvement
         best_val_loss = float("inf")
         consecutive_no_improvement = 0
         model = model.train()
@@ -160,17 +160,16 @@ def train(
 
 
                 val_loss /= len(validation_loader)
+                print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
 
-                accuracy = accuracy_score(true_labels, predictions)
-                precision = precision_score(true_labels, predictions, average='weighted')
-                recall = recall_score(true_labels, predictions, average='weighted')
-                f1 = f1_score(true_labels, predictions, average='weighted')
+                if config.collision_flag:
+                    accuracy = accuracy_score(true_labels, predictions)
+                    precision = precision_score(true_labels, predictions, average='weighted', zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+                    recall = recall_score(true_labels, predictions, average='weighted')
+                    f1 = f1_score(true_labels, predictions, average='weighted')
 
-
-            print(
-                f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f} \n Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}"
-            )
-
+                    print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+                
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 consecutive_no_improvement = 0
@@ -192,7 +191,7 @@ def train(
     if test_flag:
         print("Starting testing...")
         model.eval()
-        se = 0
+        test_loss = 0
         samples_count = 0
         mse_threshold = 6
         bad_samples = []
@@ -210,7 +209,7 @@ def train(
                 y_hat = model(images)
                 batch_loss = criterion(y_hat, labels)
 
-                se += batch_loss.item() * labels.size(0)
+                test_loss += batch_loss.item() * labels.size(0)
                 samples_count += labels.size(0)
 
                 if batch_loss.item() > mse_threshold:
@@ -238,9 +237,20 @@ def train(
                 os.makedirs(sample_folder, exist_ok=True)
                 visualize(image.unsqueeze(0), label.unsqueeze(0), y_pred.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
-        mse = se / samples_count
-        print(f"MSE of test data: {mse:.3f}")
+        mean_test_loss = test_loss / samples_count
 
+        if config.collision_flag:
+            accuracy = accuracy_score(true_labels, predictions)
+            precision = precision_score(true_labels, predictions, average='weighted', zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+            recall = recall_score(true_labels, predictions, average='weighted')
+            f1 = f1_score(true_labels, predictions, average='weighted')
+            
+            print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+            print(f"Mean BCE of test data: {mean_test_loss:.3f}")
+        else:
+            print(f"MSE of test data: {mean_test_loss:.3f}")
+
+            
 
 def save_checkpoint(epoch, model, optimizer, filename):
     print("Saving model checkpoint...")
