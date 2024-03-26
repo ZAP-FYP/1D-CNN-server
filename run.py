@@ -22,7 +22,7 @@ momentum = 0.9
 model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 
 if config.collision_flag and config.pretrained_flag:
-    checkpoint_file = f"model/{config.model_name}/model_checkpoint.pth"
+    checkpoint_file = f"model/{config.model_name}/best_model_checkpoint.pth"
     if os.path.isfile(checkpoint_file):
         model = get_classification_model(model, checkpoint_file)
         # print("Classification model:\n", model)
