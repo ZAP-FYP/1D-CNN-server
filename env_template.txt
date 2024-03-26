@@ -8,6 +8,7 @@ START_FUTURE = 0
 DATA_REDUCTION_RATE = 10
 N_TH_FRAME = False
 MODEL_NAME = no-channels-2
+COLLISION_MODEL_NAME = "collision_classifier_test"
 FRAME_AVG_RATE = 6
 DATASET_TYPE = "video"
 DATASET_PATH = "../YOLOPv2-1D_Coordinates/train_data/sequential/BDD_1_hour"
