@@ -1,4 +1,4 @@
-from src.models.conv_lstm import ConvLSTM1D,  ConvLSTM1D_Attention
+from src.models.conv_lstm import ConvLSTM1D_Attention2,  ConvLSTM1D_Attention
 from src.pipeline import train
 from src.dataset import SimpleFrameDataset, VideoFrameDataset, CollisionDataset
 import torch.nn as nn
@@ -15,7 +15,7 @@ num_layers = 3
 learning_rate = 0.001
 bidirectional = False
 
-model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+model = ConvLSTM1D_Attention2(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 # model = ConvLSTM1D(input_size, hidden_size, kernel_size, num_layers)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
