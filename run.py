@@ -4,6 +4,9 @@ from src.dataset import SimpleFrameDataset, VideoFrameDataset, CollisionDataset
 import torch.nn as nn
 import torch
 from src.config import Config
+from src.models.pretrained_model import get_classification_model
+import os
+import sys
 
 config = Config()
 
@@ -14,11 +17,26 @@ kernel_size = 3
 num_layers = 3
 learning_rate = 0.001
 bidirectional = False
+momentum = 0.9
 
-model = ConvLSTM1D_Attention2(input_size, hidden_size, kernel_size, num_layers, bidirectional)
-# model = ConvLSTM1D(input_size, hidden_size, kernel_size, num_layers)
-criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+
+if config.collision_flag and config.pretrained_flag:
+    checkpoint_file = f"model/{config.model_name}/best_model_checkpoint.pth"
+    if os.path.isfile(checkpoint_file):
+        model = get_classification_model(model, checkpoint_file)
+        # print("Classification model:\n", model)
+    else:
+        print("pretrained model does not exist!")
+        sys.exit(1)
+    criterion = nn.BCELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    model_name = config.collision_model_name
+else:
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    model_name = config.model_name
+    
 
 if config.dataset_type == 'simple':
     dataset = SimpleFrameDataset(
@@ -60,16 +78,16 @@ elif config.dataset_type == 'collision':
         prev_frames=config.prev_f
     )
 
-print(config.dataset_type)
-print(config.model_name)
-print("nth", config.n_th_frame)
+
+print("Dataset:",  config.dataset_type)
+print("Model:", model_name, "| pretrained layers are frozen:", config.pretrained_flag)
 print("thresold", config.filtering_thresold)
 train(
     dataset,
     criterion,
     optimizer,
     model,
-    config.model_name,
+    model_name,
     config.train_flag,
     config.test_flag,
     config.n_th_frame,
