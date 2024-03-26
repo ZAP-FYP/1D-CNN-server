@@ -65,9 +65,11 @@ elif config.dataset_type == 'video':
         frame_avg_rate=config.frame_avg_rate,
         prev_frames=config.prev_f,
         future_frames=config.future_f,
+        threshold=config.filtering_thresold
     )
 elif config.dataset_type == 'collision':
     dataset = CollisionDataset(
+
         directory_path=config.dataset_path,
         split_ratio=0.80,
         test_flag=config.test_flag,
@@ -76,8 +78,10 @@ elif config.dataset_type == 'collision':
         prev_frames=config.prev_f
     )
 
+
 print("Dataset:",  config.dataset_type)
 print("Model:", model_name, "| pretrained layers are frozen:", config.pretrained_flag)
+print("thresold", config.filtering_thresold)
 train(
     dataset,
     criterion,

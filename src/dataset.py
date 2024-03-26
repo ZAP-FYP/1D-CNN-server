@@ -209,6 +209,7 @@ class VideoFrameDataset:
         frame_avg_rate=0,
         prev_frames=10,
         future_frames=5,
+        threshold=0
     ):
         self.directory_path = directory_path
         self.split_ratio = split_ratio
@@ -218,14 +219,17 @@ class VideoFrameDataset:
         self.frame_avg_rate = frame_avg_rate
         self.prev_frames = prev_frames
         self.future_frames = future_frames
-
+        self.threshold = threshold
         self.create_dataset()
 
-    def get_X_y(self, data, prev_frames, future_frames):
+    def get_X_y(self, data, prev_frames, future_frames, threshold):
         
         window_size = prev_frames + future_frames
         X = [data[i : i + prev_frames] for i in range(len(data[:-window_size]))]
-
+        X_frame_diffs = [self.calculate_frame_diff(sample) for sample in X]
+        
+        print(X_frame_diffs[:10])
+        print("mean:",np.mean(X_frame_diffs))
         # for frame_index, frame in enumerate(X_file):
             #     if np.all(frame == 0):
             #         start_index = max(0, frame_index - 10)
@@ -244,8 +248,24 @@ class VideoFrameDataset:
                 data[(i + prev_frames) : (i + prev_frames + future_frames)]
                 for i in range(len(data[:-window_size]))
             ]
+        filtered_X = []
+        filtered_y = []
+        print("old:",np.array(X).shape)
 
-        return np.array(X), np.array(y)
+        with open("filtered_data.txt", "w") as file:
+            for i, diff in enumerate(X_frame_diffs):
+                file.write(f"i: {i}, diff: {diff}\n")
+                
+                # Check if any element in diff is greater than threshold
+                if np.any(diff > int(threshold)):
+                    # Append corresponding X and y values to filtered lists
+                    filtered_X.append(X[i])
+                    filtered_y.append(y[i])
+
+
+        print("new:",np.array(filtered_X).shape)
+        return np.array(filtered_X), np.array(filtered_y)
+        # return np.array(X), np.array(y)
 
     def create_averaged_frames(self, data, avg_rate):
         averaged_frames = []
@@ -273,10 +293,10 @@ class VideoFrameDataset:
 
             if self.frame_avg_rate > 0:
                 averaged_frames = self.create_averaged_frames(data_npy, self.frame_avg_rate)
-                X_file, y_file = self.get_X_y(averaged_frames, self.prev_frames, self.future_frames)
+                X_file, y_file = self.get_X_y(averaged_frames, self.prev_frames, self.future_frames,self.threshold)
                 # print("averaged_frames:", averaged_frames.shape)
             elif self.frame_avg_rate == 0:
-                X_file, y_file = self.get_X_y(data_npy, self.prev_frames, self.future_frames)
+                X_file, y_file = self.get_X_y(data_npy, self.prev_frames, self.future_frames, self.threshold)
                 # print("Not averaging")
             
             X.extend(X_file)
@@ -284,6 +304,8 @@ class VideoFrameDataset:
 
         X = np.array(X)
         y = np.array(y)
+
+        # self.visualize(X[:100], y[:100], "filtered")
 
         print("total data: ", np.array(total_data).shape)
         print(f"X shape: {X.shape}, y shape: {y.shape}")
@@ -321,7 +343,7 @@ class VideoFrameDataset:
         print(f'Validation samples {len(self.validation_dataset)}')
         print(f'Test samples {len(self.test_dataset)}')
 
-    def visualize(x, y, output_folder):
+    def visualize(self, x, y, output_folder):
         num_samples, num_frames_x, frame_length_x = x.shape
         _, num_frames_y, frame_length_y = y.shape
 
@@ -383,6 +405,10 @@ class VideoFrameDataset:
         save_path = os.path.join('visualization_folder', f'{filename}_{frame_index}.png')
         plt.savefig(save_path)
         plt.close()
+
+    def calculate_frame_diff(self, data):
+        # print(np.sum(np.abs(np.diff(data, axis=0)), axis=(0, 1)))
+        return np.sum(np.abs(np.diff(data, axis=0)), axis=(0, 1))
 
 
 class CollisionDataset:

@@ -12,3 +12,4 @@ FRAME_AVG_RATE = 6
 DATASET_TYPE = "video"
 DATASET_PATH = "../YOLOPv2-1D_Coordinates/train_data/sequential/BDD_1_hour"
 VISUALIZATION_FLAG = False
+FILTERING_THRESOLD = 0

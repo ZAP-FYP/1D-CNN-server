@@ -21,6 +21,7 @@ class Config:
             self.collision_flag = config("COLLISION_FLAG", cast=bool)
             self.patience = config("PATIENCE", cast=int)
             self.pretrained_flag = config("PRETRAINED_FLAG", cast=bool)
+            self.filtering_thresold = config("FILTERING_THRESOLD")
 
 
         except UndefinedValueError as e:
