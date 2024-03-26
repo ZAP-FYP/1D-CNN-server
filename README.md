@@ -34,6 +34,7 @@ COLLISION_FLAG = True
 PRETRAINED_FLAG = True
 DATASET_TYPE = "collision"
 DATASET_PATH = "path/to/collision/data"
+COLLISION_MODEL_NAME = "classifier_model_name"
 ```
 
 2. Run the module
