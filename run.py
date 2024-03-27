@@ -19,7 +19,7 @@ learning_rate = 0.001
 bidirectional = False
 momentum = 0.9
 
-model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+model = ConvLSTM1D_Attention2(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 
 if config.collision_flag and config.pretrained_flag:
     checkpoint_file = f"model/{config.model_name}/best_model_checkpoint.pth"
@@ -29,6 +29,12 @@ if config.collision_flag and config.pretrained_flag:
     else:
         print("pretrained model does not exist!")
         sys.exit(1)
+    criterion = nn.BCELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    model_name = config.collision_model_name
+elif config.collision_flag:
+    print("Collision model from scratch starting...")
+    model = ConvLSTM1D_Attention2(input_size, hidden_size, kernel_size, num_layers, bidirectional)
     criterion = nn.BCELoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
     model_name = config.collision_model_name
