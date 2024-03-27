@@ -38,7 +38,7 @@ class CNNModel(nn.Module):
         self.conv1 = nn.Conv3d(in_channels=1, out_channels=16, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.conv2 = nn.Conv3d(in_channels=16, out_channels=32, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.conv3 = nn.Conv3d(in_channels=32, out_channels=64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.fc = nn.Linear(64 * (360 // 8) * (640 // 8), y_window_size * 360 * 640)
+        self.fc = nn.Linear(64 * (360 // 8) * (640 // 8), 128)  # Reduced number of neurons
 
     def forward(self, x):
         x = x.permute(0, 2, 1, 3, 4)  # Permute to (batch_size, 1, 10, 360, 640) for Conv3d
