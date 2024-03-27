@@ -164,9 +164,9 @@ def train(
 
                 if config.collision_flag:
                     accuracy = accuracy_score(true_labels, predictions)
-                    precision = precision_score(true_labels, predictions, average='weighted', zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
-                    recall = recall_score(true_labels, predictions, average='weighted')
-                    f1 = f1_score(true_labels, predictions, average='weighted')
+                    precision = precision_score(true_labels, predictions, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+                    recall = recall_score(true_labels, predictions)
+                    f1 = f1_score(true_labels, predictions)
 
                     print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
                 
@@ -241,9 +241,9 @@ def train(
 
         if config.collision_flag:
             accuracy = accuracy_score(true_labels, predictions)
-            precision = precision_score(true_labels, predictions, average='weighted', zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
-            recall = recall_score(true_labels, predictions, average='weighted')
-            f1 = f1_score(true_labels, predictions, average='weighted')
+            precision = precision_score(true_labels, predictions, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+            recall = recall_score(true_labels, predictions)
+            f1 = f1_score(true_labels, predictions)
             
             print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
             print(f"Mean BCE of test data: {mean_test_loss:.3f}")
