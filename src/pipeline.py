@@ -125,9 +125,9 @@ def train(
 
                     val_loss += loss.item()
 
-                    _, predicted = torch.max(val_outputs, 1)
+                    # _, predicted = torch.max(val_outputs, 1)
                     true_labels.extend(val_labels.cpu().numpy())
-                    predictions.extend(predicted.cpu().numpy())
+                    predictions.extend(val_outputs.cpu().numpy())
 
                     # print("original loss:",loss)
 
