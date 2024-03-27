@@ -6,8 +6,9 @@ from torch.utils.data import DataLoader, Dataset
 
 # Load numpy file
 data = np.load('/Users/springy/Desktop/New Projects/YOLOPv2-1D_Coordinates/train_data/2d_maps/000d4f89-3bcbe37a.npy')
+data = np.squeeze(data)
+
 print(f'data.shape {data.shape}')
-# Define dataset class
 class MyDataset(Dataset):
     def __init__(self, data, x_window_size=10, y_window_size=5, stride=1):
         self.data = data
@@ -19,15 +20,9 @@ class MyDataset(Dataset):
         return len(self.data) - (self.x_window_size + self.y_window_size) + 1
 
     def __getitem__(self, idx):
-        x_start = idx
-        x_end = idx + self.x_window_size * self.stride
-        y_start = x_end
-        y_end = y_start + self.y_window_size * self.stride
-
-        x = self.data[x_start:x_end].reshape(-1, 1, 360, 640)
-        y = self.data[y_start:y_end].reshape(-1, 1, 360, 640)
-
-        return x, y
+        x = self.data[idx:idx+self.x_window_size*self.stride:self.stride]
+        y = self.data[idx+self.x_window_size*self.stride:idx+(self.x_window_size+self.y_window_size)*self.stride:self.stride]
+        return torch.tensor(x), torch.tensor(y)
 
 
 
@@ -37,17 +32,35 @@ class CNNModel(nn.Module):
         super(CNNModel, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=10, out_channels=16, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-        self.fc = nn.Linear(64 * (360 // 8) * (640 // 8), y_window_size * 360 * 640)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # Max pooling layer
 
+        self.fc = nn.Linear(5 * (360//8 ) * (640//8 ), 1152000)  # Minimum number of neurons
+
+    # def forward(self, x):
+    #     x = torch.relu(self.conv1(x))
+    #     x = torch.relu(self.conv2(x))
+    #     x = torch.relu(self.conv3(x))
+    #     # x = x.view(x.size(0), -1)
+    #     print(x.shape)
+    #     x = self.fc(x)
+    #     return x.view(x.size(0), y_window_size, 1, 360, 640)
     def forward(self, x):
         x = torch.relu(self.conv1(x))
+        x = self.pool(x)  # Apply pooling layer
         x = torch.relu(self.conv2(x))
+        x = self.pool(x)  # Apply pooling layer
         x = torch.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return x.view(x.size(0), y_window_size, 1, 360, 640)
+        x = self.pool(x)  # Apply pooling layer
+        print(f'after all pooling layers {x.shape}')
+        x = x.view(x.size(0), -1)  # Flatten the output for fully connected layer
+        print(f'after reshaping {x.shape}')
 
+        x = self.fc(x)
+        print(f'after fcn {x.shape}')
+        return x.view(x.size(0), y_window_size, 360, 640)
+
+        # return x.view(x.size(0), -1)  # Reshape output
 
 
 # Define parameters
