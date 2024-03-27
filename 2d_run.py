@@ -168,45 +168,45 @@ if os.path.isfile(checkpoint_file):
 
 model.to(device)
 
-# # Training loop
-# model = model.train()
-# for epoch in range(num_epochs):
-#     train_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
-#     val_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
+# Training loop
+model = model.train()
+for epoch in range(num_epochs):
+    train_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
+    val_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
 
-#     num_batches = 0  # Initialize counter for the number of batches
+    num_batches = 0  # Initialize counter for the number of batches
     
-#     for batch_x, batch_y in train_dataloader:
-#         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-#         print(batch_x.shape)
+    for batch_x, batch_y in train_dataloader:
+        batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
+        print(batch_x.shape)
 
-#         optimizer.zero_grad()
-#         output = model(batch_x.float())
-#         loss = criterion(output, batch_y.float())
-#         loss.backward()
-#         optimizer.step()
+        optimizer.zero_grad()
+        output = model(batch_x.float())
+        loss = criterion(output, batch_y.float())
+        loss.backward()
+        optimizer.step()
         
-#         train_epoch_loss += loss.item()  # Accumulate the loss for the batch
-#         num_batches += 1  # Increment the batch counter
+        train_epoch_loss += loss.item()  # Accumulate the loss for the batch
+        num_batches += 1  # Increment the batch counter
     
-    # # Calculate average loss for the epoch
-    # average_train_loss = train_epoch_loss / num_batches
+    # Calculate average loss for the epoch
+    average_train_loss = train_epoch_loss / num_batches
 
-    # for batch_x, batch_y in validation_dataloader:
-    #     batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-    #     optimizer.zero_grad()
-    #     output = model(batch_x.float())
-    #     loss = criterion(output, batch_y.float())
-    #     loss.backward()
-    #     optimizer.step()
+    for batch_x, batch_y in validation_dataloader:
+        batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
+        optimizer.zero_grad()
+        output = model(batch_x.float())
+        loss = criterion(output, batch_y.float())
+        loss.backward()
+        optimizer.step()
         
-    #     val_epoch_loss += loss.item()  # Accumulate the loss for the batch
-    #     num_batches += 1  # Increment the batch counter
+        val_epoch_loss += loss.item()  # Accumulate the loss for the batch
+        num_batches += 1  # Increment the batch counter
     
-    # # Calculate average loss for the epoch
-    # average_val_loss = val_epoch_loss / num_batches
+    # Calculate average loss for the epoch
+    average_val_loss = val_epoch_loss / num_batches
     
-    # print(f'Epoch [{epoch+1}/{num_epochs}], Train Average Loss: {average_train_loss:.4f}, Validation Average Loss: {average_val_loss:.4f}')
+    print(f'Epoch [{epoch+1}/{num_epochs}], Train Average Loss: {average_train_loss:.4f}, Validation Average Loss: {average_val_loss:.4f}')
     
 
 
