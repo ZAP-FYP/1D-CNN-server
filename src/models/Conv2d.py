@@ -213,16 +213,15 @@ class Conv2d_Deconv(nn.Module):
     def __init__(self):
         super(Conv2d_Deconv, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=10, out_channels=16, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=256, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=16, out_channels=5, kernel_size=3, padding=1)
         
         
         self.sigmoid = nn.Sigmoid()
         
         # Deconvolutional layers for upsampling
-        self.deconv1 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1)
-        self.deconv2 = nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1)
-        self.deconv3 = nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1)
+        self.deconv1 = nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1)
+        self.deconv2 = nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=4, stride=2, padding=1)
 
     def forward(self, x):
         x = torch.relu(self.conv1(x))
@@ -231,7 +230,6 @@ class Conv2d_Deconv(nn.Module):
         # Apply deconvolutional layers for upsampling
         x = torch.relu(self.deconv1(x))
         x = torch.relu(self.deconv2(x))
-        x = torch.relu(self.deconv3(x))
         
         x = torch.relu(self.conv3(x))
         x = self.sigmoid(x)  # Applying sigmoid activation
