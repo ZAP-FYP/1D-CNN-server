@@ -25,7 +25,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(f'Device {device}')
 # Load numpy file
-data = np.load('/Users/springy/Desktop/New Projects/YOLOPv2-1D_Coordinates/train_data/2d_maps/000d35d3-41990aa4.npy')
+data = np.load(config.dataset_path)
 data = np.squeeze(data)
 
 print(f'data.shape {data.shape}')
@@ -129,7 +129,7 @@ x_window_size = 10
 y_window_size = 5
 stride = 6
 batch_size = 64
-num_epochs = 1
+num_epochs = 1000
 learning_rate = 0.001
 
 # Assuming you have your data loaded into 'data'
