@@ -608,4 +608,8 @@ class Conv2d_dataset(Dataset):
             idx = max_idx
         x = self.data[idx:idx+self.x_window_size*self.stride:self.stride]
         y = self.data[idx+self.x_window_size*self.stride:idx+(self.x_window_size+self.y_window_size)*self.stride:self.stride]
-        return torch.tensor(x), torch.tensor(y)
+        # return torch.tensor(x), torch.tensor(y)
+        x_array = np.array(x)
+        y_array = np.array(y)
+        return torch.tensor(x_array), torch.tensor(y_array)
+

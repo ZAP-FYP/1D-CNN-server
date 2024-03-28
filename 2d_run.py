@@ -11,6 +11,15 @@ import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d
+
+# Define parameters
+x_window_size = 10
+y_window_size = 5
+stride = 6
+batch_size = 256
+num_epochs = 1000
+learning_rate = 0.001
+
 config = Config()
 checkpoint_file = "model/" + config.model_name + "/best_model_checkpoint.pth"
 
@@ -25,11 +34,46 @@ sys.stdout = Tee(sys.stdout, f)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(f'Device {device}')
-# Load numpy file
-data = np.load(config.dataset_path)
-data = np.squeeze(data)
 
-print(f'data.shape {data.shape}')
+
+# List all numpy files in the directory
+numpy_files = [f for f in os.listdir(config.dataset_path) if f.endswith('.npy')]
+train_data = []
+validation_data = []
+test_data = []
+
+# Iterate over each numpy file
+for file_name in numpy_files:
+    # Load numpy file
+    data = np.load(os.path.join(config.dataset_path, file_name))
+    data = np.squeeze(data)
+
+    # Splitting data into train and test/validation sets
+    data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
+
+    # Further splitting test/validation set into separate test and validation sets
+    data_validation, data_test = train_test_split(data_test_val, test_size=0.5, random_state=42)
+
+    # Append data to combined datasets
+    train_data.extend(data_train)
+    validation_data.extend(data_validation)
+    test_data.extend(data_test)
+
+# Create datasets from combined data
+train_dataset = Conv2d_dataset(train_data, x_window_size, y_window_size, stride)
+validation_dataset = Conv2d_dataset(validation_data, x_window_size, y_window_size, stride)
+test_dataset = Conv2d_dataset(test_data, x_window_size, y_window_size, stride)
+
+print(f'Combined Train samples {len(train_dataset)}')
+print(f'Combined Validation samples {len(validation_dataset)}')
+print(f'Combined Test samples {len(test_dataset)}')
+
+
+# Load numpy file
+# data = np.load(config.dataset_path)
+# data = np.squeeze(data)
+
+# print(f'data.shape {data.shape}')
 def save_checkpoint(epoch, model, optimizer, filename):
     print("Saving model checkpoint...")
     checkpoint = {
@@ -42,32 +86,26 @@ def save_checkpoint(epoch, model, optimizer, filename):
 
 
 
-# Define parameters
-x_window_size = 10
-y_window_size = 5
-stride = 6
-batch_size = 256
-num_epochs = 1000
-learning_rate = 0.001
+
 
 # Assuming you have your data loaded into 'data'
 
-# Splitting data into train and test/validation sets
-data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
+# # Splitting data into train and test/validation sets
+# data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
 
-# Further splitting test/validation set into separate test and validation sets
-data_validation, data_test = train_test_split(data_test_val, test_size=0.5, random_state=42)
+# # Further splitting test/validation set into separate test and validation sets
+# data_validation, data_test = train_test_split(data_test_val, test_size=0.5, random_state=42)
 
-# Creating datasets
-train_dataset = Conv2d_dataset(data_train, x_window_size, y_window_size, stride)
-validation_dataset = Conv2d_dataset(data_validation, x_window_size, y_window_size, stride)
-test_dataset = Conv2d_dataset(data_test, x_window_size, y_window_size, stride)
+# # Creating datasets
+# train_dataset = Conv2d_dataset(data_train, x_window_size, y_window_size, stride)
+# validation_dataset = Conv2d_dataset(data_validation, x_window_size, y_window_size, stride)
+# test_dataset = Conv2d_dataset(data_test, x_window_size, y_window_size, stride)
 
-print(f'Train samples {len(train_dataset)}')
-print(f'Validation samples {len(validation_dataset)}')
-print(f'Test samples {len(test_dataset)}')
+# print(f'Train samples {len(train_dataset)}')
+# print(f'Validation samples {len(validation_dataset)}')
+# print(f'Test samples {len(test_dataset)}')
 
-# Creating data loaders
+# # Creating data loaders
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
@@ -163,6 +201,9 @@ for batch_x, batch_y in test_dataloader:
     test_epoch_loss += loss.item()  # Accumulate the loss for the batch
     num_batches += 1  # Increment the batch counter
     
+    batch_x_cpu = batch_x.cpu().detach().numpy()
+    batch_y_cpu = batch_y.cpu().detach().numpy()
+    output_cpu = output.cpu().detach().numpy()
 
     # Plotting
     for i in range(batch_x.shape[0]):  # Loop over each sample in the batch
@@ -181,7 +222,7 @@ for batch_x, batch_y in test_dataloader:
         
         # Plot images from batch_y for the current sample
         for j in range(5):
-            axes[3, j].imshow(output[i, j].detach().cpu().numpy(), cmap='gray')  # Assuming binary images (0 and 1)
+            axes[3, j].imshow(output_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
             axes[3, j].set_title(f'Predicted Frame[{j}]')
             axes[3, j].axis('off')
 
