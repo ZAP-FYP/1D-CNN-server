@@ -113,7 +113,7 @@ for epoch in range(num_epochs):
     val_epoch_loss = 0.0
     total_predictions = []
     total_labels = []
-
+    temp=0
     model.train()  # Set the model to training mode
 
     for batch_x, batch_y in train_dataloader:
@@ -125,15 +125,17 @@ for epoch in range(num_epochs):
         single_dimensional_batch_y = batch_y.view(-1)
 
         loss = criterion(single_dimensional_output, single_dimensional_batch_y.float())
+        loss2 = criterion(output, batch_y.float())
         loss.backward()
         optimizer.step()
-
+        temp +=loss2.item()
         train_epoch_loss += loss.item()
 
     average_train_loss = train_epoch_loss / len(train_dataloader)
+    average_train_loss2 = temp / len(train_dataloader)
 
     # print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-    print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}")
+    print(f"Epoch {epoch+1}: Train Loss flat: {average_train_loss:.4f} Train Loss normal: {average_train_loss2:.4f}")
     num_batches = 0
     for batch_x, batch_y in validation_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
