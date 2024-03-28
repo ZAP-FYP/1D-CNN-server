@@ -19,13 +19,8 @@ class Conv2d(nn.Module):
         x = torch.relu(self.conv2(x))
         # x = self.pool(x)  # Apply pooling layer
         x = torch.relu(self.conv3(x))
-        # x = self.pool(x)  # Apply pooling layer
-        # print(f'after all pooling layers {x.shape}')
-        # x = x.view(x.size(0), -1)  # Flatten the output for fully connected layer
-        # print(f'after reshaping {x.shape}')
-        x = self.sigmoid(x)  # Applying sigmoid activation
 
-        # x = self.fc(x)
-        # print(f'after fcn {x.shape}')
+        x = self.sigmoid(x)  # Applying sigmoid activation
+        
         return x.view(x.size(0), 5, 168, 256)
 

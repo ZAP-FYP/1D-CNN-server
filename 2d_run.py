@@ -11,6 +11,7 @@ import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Define parameters
 x_window_size = 10
@@ -83,28 +84,6 @@ def save_checkpoint(epoch, model, optimizer, filename):
     }
     torch.save(checkpoint, filename)
 
-
-
-
-
-
-# Assuming you have your data loaded into 'data'
-
-# # Splitting data into train and test/validation sets
-# data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
-
-# # Further splitting test/validation set into separate test and validation sets
-# data_validation, data_test = train_test_split(data_test_val, test_size=0.5, random_state=42)
-
-# # Creating datasets
-# train_dataset = Conv2d_dataset(data_train, x_window_size, y_window_size, stride)
-# validation_dataset = Conv2d_dataset(data_validation, x_window_size, y_window_size, stride)
-# test_dataset = Conv2d_dataset(data_test, x_window_size, y_window_size, stride)
-
-# print(f'Train samples {len(train_dataset)}')
-# print(f'Validation samples {len(validation_dataset)}')
-# print(f'Test samples {len(test_dataset)}')
-
 # # Creating data loaders
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
@@ -128,25 +107,52 @@ model.to(device)
 model = model.train()
 best_val_loss = float("inf")
 consecutive_no_improvement = 0
-for epoch in range(num_epochs):
-    train_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
-    val_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
 
-    num_batches = 0  # Initialize counter for the number of batches
-    
+for epoch in range(num_epochs):
+    train_epoch_loss = 0.0
+    val_epoch_loss = 0.0
+    total_predictions = []
+    total_labels = []
+
+    model.train()  # Set the model to training mode
+
     for batch_x, batch_y in train_dataloader:
-        batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
+        batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+
         optimizer.zero_grad()
         output = model(batch_x.float())
-        loss = criterion(output, batch_y.float())
+        single_dimensional_output = output.view(-1)
+        single_dimensional_batch_y = batch_y.view(-1)
+
+        loss = criterion(single_dimensional_output, single_dimensional_batch_y.float())
         loss.backward()
         optimizer.step()
-        
-        train_epoch_loss += loss.item()  # Accumulate the loss for the batch
-        num_batches += 1  # Increment the batch counter
-    
-    # Calculate average loss for the epoch
-    average_train_loss = train_epoch_loss / num_batches
+
+        train_epoch_loss += loss.item()
+
+        # Convert probabilities to binary predictions using thresholding
+
+        binary_predictions = (single_dimensional_output > 0.5).float()
+        total_predictions.extend(binary_predictions.cpu().detach().numpy())
+        total_labels.extend(single_dimensional_batch_y.cpu().detach().numpy())
+
+    average_train_loss = train_epoch_loss / len(train_dataloader)
+    # total_predictions = np.array(total_predictions, dtype=np.int64)  # Cast to integers
+    # total_labels = np.array(total_labels)
+    # # Calculate accuracy, precision, recall, and F1 score
+    # # Print unique values to understand the data
+    # print("Unique values in total_labels:", np.unique(total_labels))
+    # print("Unique values in total_predictions:", np.unique(total_predictions))
+
+    # # Ensure both arrays have the same shape
+    # assert total_labels.shape == total_predictions.shape, "Shapes of labels and predictions don't match"
+    accuracy = accuracy_score(total_labels, total_predictions)
+    precision = precision_score(total_labels, total_predictions, average='weighted')
+    recall = recall_score(total_labels, total_predictions, average='weighted')
+    f1 = f1_score(total_labels, total_predictions, average='weighted')
+
+    print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+    # print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}")
 
     for batch_x, batch_y in validation_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
