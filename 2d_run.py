@@ -10,7 +10,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
-from src.models.Conv2d import Conv2d
+from src.models.Conv2d import Conv2d, DeepConv2d, DeepConv2d_Deconv, DeepConv2d_Pooling, DeepConv2d_Residual, DeepConv2d_SpatialPyramidPooling, Conv2d_Residual
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Define parameters
@@ -89,7 +89,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=Fals
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = Conv2d()
+model = DeepConv2d()
 print(model)
 criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
