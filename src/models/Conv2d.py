@@ -28,7 +28,7 @@ class Conv2d(nn.Module):
 
 class Conv2d_Residual(nn.Module):
     def __init__(self):
-        super(Conv2d, self).__init__()
+        super(Conv2d_Residual, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=10, out_channels=16, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
