@@ -133,20 +133,28 @@ class Conv2d_Pooling(nn.Module):
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
         
         self.sigmoid = nn.Sigmoid()
-        self.avg_pool = nn.AvgPool2d(kernel_size=2, stride=2)
+        self.avg_pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
 
     def forward(self, x):
         x = torch.relu(self.conv1(x))
+        print(f'shape after 1st layer {x.shape}')
         x = self.avg_pool(x)  # Apply average pooling layer
+        print(f'shape after 1st pooling {x.shape}')
 
         
         x = torch.relu(self.conv2(x))
+        print(f'shape after 2nd layer {x.shape}')
+
         x = self.avg_pool(x)  # Apply average pooling layer
+        print(f'shape after 2nd pooling {x.shape}')
 
         
         x = torch.relu(self.conv3(x))
+        print(f'shape after 3rd layer {x.shape}')
+
         x = self.avg_pool(x)  # Apply average pooling layer
-        
+        print(f'shape after 3rd pooling {x.shape}')
+
         x = self.sigmoid(x)  # Applying sigmoid activation
 
         
@@ -201,17 +209,13 @@ class DeepConv2d_SpatialPyramidPooling(nn.Module):
         
         return x.view(x.size(0), 5, 168, 256)
 
-class DeepConv2d_Deconv(nn.Module):
+class Conv2d_Deconv(nn.Module):
     def __init__(self):
-        super(DeepConv2d_Deconv, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=10, out_channels=32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
-        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
-        self.conv5 = nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, padding=1)
-        self.conv6 = nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, padding=1)
-        self.conv7 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding=1)
-        self.conv8 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
+        super(Conv2d_Deconv, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=10, out_channels=16, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=256, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
+        
         
         self.sigmoid = nn.Sigmoid()
         
@@ -223,18 +227,13 @@ class DeepConv2d_Deconv(nn.Module):
     def forward(self, x):
         x = torch.relu(self.conv1(x))
         x = torch.relu(self.conv2(x))
-        x = torch.relu(self.conv3(x))
-        x = torch.relu(self.conv4(x))
-        x = torch.relu(self.conv5(x))
-        x = torch.relu(self.conv6(x))
-        x = torch.relu(self.conv7(x))
         
         # Apply deconvolutional layers for upsampling
         x = torch.relu(self.deconv1(x))
         x = torch.relu(self.deconv2(x))
         x = torch.relu(self.deconv3(x))
         
-        x = torch.relu(self.conv8(x))
+        x = torch.relu(self.conv3(x))
         x = self.sigmoid(x)  # Applying sigmoid activation
         
         return x.view(x.size(0), 5, 168, 256)
