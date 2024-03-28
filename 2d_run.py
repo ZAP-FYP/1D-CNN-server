@@ -130,29 +130,10 @@ for epoch in range(num_epochs):
 
         train_epoch_loss += loss.item()
 
-        # Convert probabilities to binary predictions using thresholding
-
-        binary_predictions = (single_dimensional_output > 0.5).float()
-        total_predictions.extend(binary_predictions.cpu().detach().numpy())
-        total_labels.extend(single_dimensional_batch_y.cpu().detach().numpy())
-
     average_train_loss = train_epoch_loss / len(train_dataloader)
-    # total_predictions = np.array(total_predictions, dtype=np.int64)  # Cast to integers
-    # total_labels = np.array(total_labels)
-    # # Calculate accuracy, precision, recall, and F1 score
-    # # Print unique values to understand the data
-    # print("Unique values in total_labels:", np.unique(total_labels))
-    # print("Unique values in total_predictions:", np.unique(total_predictions))
 
-    # # Ensure both arrays have the same shape
-    # assert total_labels.shape == total_predictions.shape, "Shapes of labels and predictions don't match"
-    accuracy = accuracy_score(total_labels, total_predictions)
-    precision = precision_score(total_labels, total_predictions, average='weighted')
-    recall = recall_score(total_labels, total_predictions, average='weighted')
-    f1 = f1_score(total_labels, total_predictions, average='weighted')
-
-    print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-    # print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}")
+    # print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+    print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}")
 
     for batch_x, batch_y in validation_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
