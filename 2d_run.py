@@ -38,43 +38,6 @@ def save_checkpoint(epoch, model, optimizer, filename):
     }
     torch.save(checkpoint, filename)
 
-def visualize( x, y, output_folder):
-        num_samples, num_frames_x, frame_length_x = x.shape
-        _, num_frames_y, frame_length_y = y.shape
-
-        for sample_index in range(num_samples):
-            sample_folder = os.path.join(output_folder, f"sample_{sample_index}")
-            os.makedirs(sample_folder, exist_ok=True)
-
-            plt.figure(figsize=(15, 4))
-
-            # Plot x
-            for frame_index in range(num_frames_x):
-                x_frame = x[sample_index, frame_index]
-                plt.plot(
-                    x_frame, label=f"Sample {sample_index}, Frame {frame_index} - Input (x)"
-                )
-
-            # Plot y
-            for frame_index in range(num_frames_y):
-                y_frame = y[sample_index, frame_index]
-                plt.plot(
-                    y_frame,
-                    label=f"Sample {sample_index}, Frame {frame_index} - Output (y)",
-                    color="red",
-                )
-
-            plt.xlabel("Time Steps")
-            plt.ylabel("Values")
-            plt.legend()
-
-            plt.tight_layout()
-
-            # Save the figure
-            plt.savefig(
-                os.path.join(sample_folder, f"sample_{sample_index}_visualization.png")
-            )
-            plt.close()
 class MyDataset(Dataset):
     def __init__(self, data, x_window_size=10, y_window_size=5, stride=1):
         self.data = data
