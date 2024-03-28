@@ -111,8 +111,6 @@ consecutive_no_improvement = 0
 for epoch in range(num_epochs):
     train_epoch_loss = 0.0
     val_epoch_loss = 0.0
-    total_predictions = []
-    total_labels = []
     model.train()  # Set the model to training mode
 
     for batch_x, batch_y in train_dataloader:
@@ -194,12 +192,12 @@ for batch_x, batch_y in test_dataloader:
 
         # Plot images from batch_x for the current sample
         for j in range(10):
-            axes[j // 5, j % 5].imshow(batch_x[i, j], cmap='gray')  # Assuming binary images (0 and 1)
+            axes[j // 5, j % 5].imshow(batch_x_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
             axes[j // 5, j % 5].set_title(f'X[{j}]')
             axes[j // 5, j % 5].axis('off')
 
         for j in range(5):
-            axes[2, j].imshow(batch_y[i, j], cmap='gray')  # Assuming binary images (0 and 1)
+            axes[2, j].imshow(batch_y_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
             axes[2, j].set_title(f'True Label[{j}]')
             axes[2, j].axis('off')
         
