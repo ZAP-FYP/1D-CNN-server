@@ -9,9 +9,10 @@ from src.tee import Tee
 import os
 import sys
 import matplotlib.pyplot as plt
-
+from src.dataset import Conv2d_dataset
+from src.models.Conv2d import Conv2d
 config = Config()
-checkpoint_file = "model/" + config.model_name + "/model_checkpoint.pth"
+checkpoint_file = "model/" + config.model_name + "/best_model_checkpoint.pth"
 
 if not os.path.exists("model/" + config.model_name):
     os.makedirs("model/" + config.model_name)
@@ -38,60 +39,14 @@ def save_checkpoint(epoch, model, optimizer, filename):
     }
     torch.save(checkpoint, filename)
 
-class MyDataset(Dataset):
-    def __init__(self, data, x_window_size=10, y_window_size=5, stride=1):
-        self.data = data
-        self.x_window_size = x_window_size
-        self.y_window_size = y_window_size
-        self.stride = stride
 
-    def __len__(self):
-        return len(self.data) - (self.x_window_size + self.y_window_size) * self.stride + 1
-
-    def __getitem__(self, idx):
-        max_idx = len(self.data) - (self.x_window_size + self.y_window_size) * self.stride + 1
-        if idx>max_idx:
-            idx = max_idx
-        x = self.data[idx:idx+self.x_window_size*self.stride:self.stride]
-        y = self.data[idx+self.x_window_size*self.stride:idx+(self.x_window_size+self.y_window_size)*self.stride:self.stride]
-        return torch.tensor(x), torch.tensor(y)
-
-
-
-
-class CNNModel(nn.Module):
-    def __init__(self):
-        super(CNNModel, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=10, out_channels=16, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=5, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # Max pooling layer
-
-        # self.fc = nn.Linear(5 * (168//8 ) * (256//8 ), 1152000)  
-
-    def forward(self, x):
-        x = torch.relu(self.conv1(x))
-        # x = self.pool(x)  # Apply pooling layer
-        x = torch.relu(self.conv2(x))
-        # x = self.pool(x)  # Apply pooling layer
-        x = torch.relu(self.conv3(x))
-        # x = self.pool(x)  # Apply pooling layer
-        print(f'after all pooling layers {x.shape}')
-        # x = x.view(x.size(0), -1)  # Flatten the output for fully connected layer
-        # print(f'after reshaping {x.shape}')
-
-        # x = self.fc(x)
-        # print(f'after fcn {x.shape}')
-        return x.view(x.size(0), y_window_size, 168, 256)
-
-        # return x.view(x.size(0), -1)  # Reshape output
 
 
 # Define parameters
 x_window_size = 10
 y_window_size = 5
 stride = 6
-batch_size = 64
+batch_size = 256
 num_epochs = 1000
 learning_rate = 0.001
 
@@ -104,9 +59,9 @@ data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=4
 data_validation, data_test = train_test_split(data_test_val, test_size=0.5, random_state=42)
 
 # Creating datasets
-train_dataset = MyDataset(data_train, x_window_size, y_window_size, stride)
-validation_dataset = MyDataset(data_validation, x_window_size, y_window_size, stride)
-test_dataset = MyDataset(data_test, x_window_size, y_window_size, stride)
+train_dataset = Conv2d_dataset(data_train, x_window_size, y_window_size, stride)
+validation_dataset = Conv2d_dataset(data_validation, x_window_size, y_window_size, stride)
+test_dataset = Conv2d_dataset(data_test, x_window_size, y_window_size, stride)
 
 print(f'Train samples {len(train_dataset)}')
 print(f'Validation samples {len(validation_dataset)}')
@@ -117,9 +72,9 @@ train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=Fals
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = CNNModel()
+model = Conv2d()
 print(model)
-criterion = nn.MSELoss()
+criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 if os.path.isfile(checkpoint_file):
@@ -133,6 +88,8 @@ model.to(device)
 
 # Training loop
 model = model.train()
+best_val_loss = float("inf")
+consecutive_no_improvement = 0
 for epoch in range(num_epochs):
     train_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
     val_epoch_loss = 0.0  # Initialize loss accumulator for the epoch
@@ -141,8 +98,6 @@ for epoch in range(num_epochs):
     
     for batch_x, batch_y in train_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-        print(batch_x.shape)
-
         optimizer.zero_grad()
         output = model(batch_x.float())
         loss = criterion(output, batch_y.float())
@@ -168,7 +123,23 @@ for epoch in range(num_epochs):
     
     # Calculate average loss for the epoch
     average_val_loss = val_epoch_loss / num_batches
-    
+    if average_val_loss < best_val_loss:
+        best_val_loss = average_val_loss
+        consecutive_no_improvement = 0
+        save_checkpoint(
+            epoch,
+            model,
+            optimizer,
+            "model/" + config.model_name + "/best_model_checkpoint.pth",
+        )
+    else:
+        consecutive_no_improvement += 1
+
+    if consecutive_no_improvement >= config.patience:
+        print(f"best_val_loss {best_val_loss}")
+        print(f"Early stopping at epoch {epoch+1}")
+        break
+    print(f"best_val_loss {best_val_loss}")
     print(f'Epoch [{epoch+1}/{num_epochs}], Train Average Loss: {average_train_loss:.4f}, Validation Average Loss: {average_val_loss:.4f}')
     
 
@@ -200,18 +171,18 @@ for batch_x, batch_y in test_dataloader:
         # Plot images from batch_x for the current sample
         for j in range(10):
             axes[j // 5, j % 5].imshow(batch_x[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[j // 5, j % 5].set_title(f'x[{j}]')
+            axes[j // 5, j % 5].set_title(f'X[{j}]')
             axes[j // 5, j % 5].axis('off')
 
         for j in range(5):
             axes[2, j].imshow(batch_y[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[2, j].set_title(f'y[{j}]')
+            axes[2, j].set_title(f'True Label[{j}]')
             axes[2, j].axis('off')
         
         # Plot images from batch_y for the current sample
         for j in range(5):
             axes[3, j].imshow(output[i, j].detach().cpu().numpy(), cmap='gray')  # Assuming binary images (0 and 1)
-            axes[3, j].set_title(f'pred[{j}]')
+            axes[3, j].set_title(f'Predicted Frame[{j}]')
             axes[3, j].axis('off')
 
         plt.tight_layout()

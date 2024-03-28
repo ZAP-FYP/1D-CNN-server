@@ -590,3 +590,22 @@ class DrivableDataset(Dataset):
             # Save the figure
             plt.savefig(os.path.join(sample_folder, f"sample_{sample_index}_visualization.png"))
             plt.close()
+
+
+class Conv2d_dataset(Dataset):
+    def __init__(self, data, x_window_size=10, y_window_size=5, stride=1):
+        self.data = data
+        self.x_window_size = x_window_size
+        self.y_window_size = y_window_size
+        self.stride = stride
+
+    def __len__(self):
+        return len(self.data) - (self.x_window_size + self.y_window_size) * self.stride + 1
+
+    def __getitem__(self, idx):
+        max_idx = len(self.data) - (self.x_window_size + self.y_window_size) * self.stride + 1
+        if idx>max_idx:
+            idx = max_idx
+        x = self.data[idx:idx+self.x_window_size*self.stride:self.stride]
+        y = self.data[idx+self.x_window_size*self.stride:idx+(self.x_window_size+self.y_window_size)*self.stride:self.stride]
+        return torch.tensor(x), torch.tensor(y)
