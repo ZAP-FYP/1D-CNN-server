@@ -6,7 +6,8 @@ from src.tee import Tee
 import matplotlib.pyplot as plt
 from datetime import datetime
 from src.config import Config 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import numpy as np
 
 config = Config()
 
@@ -127,7 +128,7 @@ def train(
 
                     # _, predicted = torch.max(val_outputs, 1)
                     true_labels.extend(val_labels.cpu().numpy())
-                    predictions.extend(val_outputs.cpu().numpy())
+                    predictions.extend(np.where(val_outputs.cpu().numpy() > 0.5, 1, 0))
 
                     # print("original loss:",loss)
 
@@ -168,6 +169,7 @@ def train(
                     recall = recall_score(true_labels, predictions)
                     f1 = f1_score(true_labels, predictions)
 
+                    print("Confusion Matrix:\n", confusion_matrix(true_labels, predictions))
                     print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
                 
             if val_loss < best_val_loss:
@@ -209,6 +211,8 @@ def train(
                 y_hat = model(images)
                 batch_loss = criterion(y_hat, labels)
 
+                test_preds = np.where(y_hat.cpu().numpy() > 0.5, 1, 0)
+
                 test_loss += batch_loss.item() * labels.size(0)
                 samples_count += labels.size(0)
 
@@ -240,11 +244,12 @@ def train(
         mean_test_loss = test_loss / samples_count
 
         if config.collision_flag:
-            accuracy = accuracy_score(true_labels, predictions)
-            precision = precision_score(true_labels, predictions, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
-            recall = recall_score(true_labels, predictions)
-            f1 = f1_score(true_labels, predictions)
-            
+            accuracy = accuracy_score(labels, test_preds)
+            precision = precision_score(labels, test_preds, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+            recall = recall_score(labels, test_preds)
+            f1 = f1_score(labels, test_preds)
+
+            print("Confusion Matrix:\n", confusion_matrix(labels, y_hat))
             print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
             print(f"Mean BCE of test data: {mean_test_loss:.3f}")
         else:
