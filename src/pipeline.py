@@ -5,11 +5,10 @@ import sys
 from src.tee import Tee
 import matplotlib.pyplot as plt
 from datetime import datetime
-from src.config import Config 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
+from PIL import Image
 
-config = Config()
 
 def train(
     dataset,
@@ -22,8 +21,10 @@ def train(
     n_th_frame,
     future_f,
     visualization_flag,
+    collision_flag,
     num_epochs=1000,
     batch_size=25,
+    patience = 40
 ):
     
     checkpoint_file = "model/" + model_name + "/model_checkpoint.pth"
@@ -67,7 +68,6 @@ def train(
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
-        patience = config.patience # Number of consecutive epochs without improvement
         best_val_loss = float("inf")
         consecutive_no_improvement = 0
         model = model.train()
@@ -77,7 +77,7 @@ def train(
             for i, (images, labels) in enumerate(train_loader):
                 images = images.to(device)
 
-                if config.collision_flag:
+                if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
                 else:
                     labels = labels.to(device)
@@ -115,7 +115,7 @@ def train(
                 for i, (val_images, val_labels) in enumerate(validation_loader):
                     val_images = val_images.to(device)
 
-                    if config.collision_flag:
+                    if collision_flag:
                         val_labels = val_labels.unsqueeze(1).to(device)
                     else:
                         val_labels = val_labels.to(device)
@@ -163,7 +163,7 @@ def train(
                 val_loss /= len(validation_loader)
                 print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
 
-                if config.collision_flag:
+                if collision_flag:
                     accuracy = accuracy_score(true_labels, predictions)
                     precision = precision_score(true_labels, predictions, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
                     recall = recall_score(true_labels, predictions)
@@ -203,7 +203,7 @@ def train(
             for images, labels in test_loader:
                 images = images.to(device)
                 
-                if config.collision_flag:
+                if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
                 else:
                     labels = labels.to(device)
@@ -243,7 +243,7 @@ def train(
 
         mean_test_loss = test_loss / samples_count
 
-        if config.collision_flag:
+        if collision_flag:
             accuracy = accuracy_score(labels, test_preds)
             precision = precision_score(labels, test_preds, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
             recall = recall_score(labels, test_preds)
