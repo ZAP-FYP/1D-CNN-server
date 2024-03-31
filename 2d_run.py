@@ -10,7 +10,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
-from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Pooling, DeepConv2d_Residual, DeepConv2d_SpatialPyramidPooling, Conv2d_Residual
+from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Define parameters
@@ -192,8 +192,7 @@ for batch_x, batch_y in test_dataloader:
     batch_x_cpu = batch_x.cpu().detach().numpy()
     batch_y_cpu = batch_y.cpu().detach().numpy()
     output_cpu = output.cpu().detach().numpy()
-    del batch_x
-    del batch_y
+
 
     # Plotting
     for i in range(batch_x.shape[0]):  # Loop over each sample in the batch
@@ -221,7 +220,8 @@ for batch_x, batch_y in test_dataloader:
 
         plt.savefig(os.path.join(visualization_folder, f"visualization_{i}.png"))  # Save the figure
         plt.close()
-
+    del batch_x
+    del batch_y
 # Calculate average loss for the epoch
 average_test_loss = test_epoch_loss / num_batches
 
