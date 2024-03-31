@@ -35,6 +35,8 @@ sys.stdout = Tee(sys.stdout, f)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(f'Device {device}')
+if device != "cpu":
+    torch.cuda.empty_cache()
 
 
 # List all numpy files in the directory
@@ -123,6 +125,9 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
         train_epoch_loss += loss.item()
+        del batch_x
+        del batch_y
+
 
     average_train_loss = train_epoch_loss / len(train_dataloader)
 
@@ -139,6 +144,8 @@ for epoch in range(num_epochs):
         
         val_epoch_loss += loss.item()  # Accumulate the loss for the batch
         num_batches += 1  # Increment the batch counter
+        del batch_x
+        del batch_y
     
     # Calculate average loss for the epoch
     average_val_loss = val_epoch_loss / num_batches
@@ -185,6 +192,8 @@ for batch_x, batch_y in test_dataloader:
     batch_x_cpu = batch_x.cpu().detach().numpy()
     batch_y_cpu = batch_y.cpu().detach().numpy()
     output_cpu = output.cpu().detach().numpy()
+    del batch_x
+    del batch_y
 
     # Plotting
     for i in range(batch_x.shape[0]):  # Loop over each sample in the batch
