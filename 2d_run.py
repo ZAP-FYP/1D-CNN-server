@@ -218,7 +218,7 @@ for batch_x, batch_y in test_dataloader:
         plt.tight_layout()
         plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
 
-        plt.savefig(os.path.join(visualization_folder, f"visualization_{i}.png"))  # Save the figure
+        plt.savefig(os.path.join(visualization_folder, f"visualization_{i} batch {batch_size}.png"))  # Save the figure
         plt.close()
     # del batch_x
     # del batch_y
