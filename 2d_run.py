@@ -220,8 +220,8 @@ for batch_x, batch_y in test_dataloader:
 
         plt.savefig(os.path.join(visualization_folder, f"visualization_{i}.png"))  # Save the figure
         plt.close()
-    del batch_x
-    del batch_y
+    # del batch_x
+    # del batch_y
 # Calculate average loss for the epoch
 average_test_loss = test_epoch_loss / num_batches
 
