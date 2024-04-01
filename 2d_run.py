@@ -121,6 +121,7 @@ test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 model = UNet(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
 # criterion = nn.BCELoss()
+print("positive weights",positive_weights)
 positive_weight = np.mean(positive_weights) 
 print(f'positive_weight {positive_weight}')
 # Define the weighted BCELoss
