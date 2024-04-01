@@ -73,7 +73,11 @@ for file_name in numpy_files:
     # Load numpy file
     data = np.load(os.path.join(config.dataset_path, file_name))
     data = np.squeeze(data)
-    positive_weights.append(calculate_positive_weight(data))
+    positive_weight = calculate_positive_weight(data)
+    if positive_weight==float('inf'):
+        print(f"inf found in {file_name}")
+        continue
+    positive_weights.append(positive_weight)
     # Splitting data into train and test/validation sets
     data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
 
