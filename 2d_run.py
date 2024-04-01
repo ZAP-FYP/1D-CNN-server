@@ -13,6 +13,29 @@ from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
+def calculate_positive_weight(dataset):
+    num_ones = np.sum(dataset == 1)
+    num_zeros = np.sum(dataset == 0)
+
+    # print("Number of ones:", num_ones)
+    # print("Number of zeros:", num_zeros)
+    # Assuming dataset is a numpy array of shape (num_frames, height, width)
+    # Count the number of positive samples (e.g., where the label is 1)
+    num_positive_samples = np.sum(dataset == 1)
+    # print(f'num_positive_samples {num_positive_samples}')
+    # Total number of samples
+    # total_samples = num_ones+num_zeros
+    # print(f'total_samples {total_samples}')
+
+    # Calculate the positive class ratio
+    positive_ratio = num_zeros / num_ones
+    # print(f'positive_ratio {positive_ratio}')
+
+    # Calculate the positive weight as the reciprocal of the positive ratio
+    # positive_weight = 1 - positive_ratio
+    # print(f'positive_weight {positive_weight}')
+
+    return positive_ratio    
 # Define parameters
 x_window_size = 10
 y_window_size = 5
@@ -44,13 +67,13 @@ numpy_files = [f for f in os.listdir(config.dataset_path) if f.endswith('.npy')]
 train_data = []
 validation_data = []
 test_data = []
-
+positive_weights=[]
 # Iterate over each numpy file
 for file_name in numpy_files:
     # Load numpy file
     data = np.load(os.path.join(config.dataset_path, file_name))
     data = np.squeeze(data)
-
+    positive_weights.append(calculate_positive_weight(data))
     # Splitting data into train and test/validation sets
     data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
 
@@ -93,7 +116,11 @@ test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 model = UNet(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
-criterion = nn.BCELoss()
+# criterion = nn.BCELoss()
+positive_weight = np.mean(positive_weights) 
+print(f'positive_weight {positive_weight}')
+# Define the weighted BCELoss
+criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 if os.path.isfile(checkpoint_file):
