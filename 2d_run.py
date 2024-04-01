@@ -201,18 +201,18 @@ for batch_x, batch_y in test_dataloader:
         # Plot images from batch_x for the current sample
         for j in range(10):
             axes[j // 5, j % 5].imshow(batch_x_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[j // 5, j % 5].set_title(f'X[{j}]')
+            axes[j // 5, j % 5].set_title(f'X[{j}] batch {batch_size}')
             axes[j // 5, j % 5].axis('off')
 
         for j in range(5):
             axes[2, j].imshow(batch_y_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[2, j].set_title(f'True Label[{j}]')
+            axes[2, j].set_title(f'True Label[{j} batch {batch_size}]')
             axes[2, j].axis('off')
         
         # Plot images from batch_y for the current sample
         for j in range(5):
             axes[3, j].imshow(output_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[3, j].set_title(f'Predicted Frame[{j}]')
+            axes[3, j].set_title(f'Predicted Frame[{j} batch {batch_size}]')
             axes[3, j].axis('off')
 
         plt.tight_layout()
