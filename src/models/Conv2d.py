@@ -304,3 +304,18 @@ class UNet(nn.Module):
         output = torch.sigmoid(output)  # Applying sigmoid to ensure output is in [0,1] range
         
         return output
+
+class DiceLoss(torch.nn.Module):
+    def __init__(self, smooth=1.):
+        super(DiceLoss, self).__init__()
+        self.smooth = smooth
+
+    def forward(self, prediction, target):
+        prediction = prediction.contiguous()
+        target = target.contiguous()
+
+        intersection = (prediction * target).sum(dim=2).sum(dim=2)
+        dice_coeff = (2. * intersection + self.smooth) / (prediction.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + self.smooth)
+        dice_loss = 1 - dice_coeff.mean()
+
+        return dice_loss

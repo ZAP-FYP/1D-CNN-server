@@ -10,7 +10,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
-from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet
+from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def calculate_positive_weight(dataset):
@@ -125,7 +125,9 @@ print("positive weights",positive_weights)
 positive_weight = np.mean(positive_weights) 
 print(f'positive_weight {positive_weight}')
 # Define the weighted BCELoss
-criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
+# criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
+criterion = DiceLoss()
+
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 if os.path.isfile(checkpoint_file):
