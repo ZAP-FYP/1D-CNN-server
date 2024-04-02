@@ -550,6 +550,11 @@ class CollisionDataset:
         y = np.array(y)
         tta = np.array(tta)
 
+        unique_values, counts = np.unique(y, return_counts=True)
+
+        for value, count in zip(unique_values, counts):
+            print(f"Value: {value}, Count: {count}")
+
         print("total data: ", np.array(total_data).shape)
         print(f"X shape: {X.shape}, y shape: {y.shape}")
         np.save("X.npy", X)

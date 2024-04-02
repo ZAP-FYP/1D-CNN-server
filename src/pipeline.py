@@ -77,7 +77,6 @@ def train(
 
             for i, (images, labels, tta) in enumerate(train_loader):
                 images = images.to(device)
-                tta = tta.to(device)
 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
@@ -88,6 +87,7 @@ def train(
                 y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
                                 
                 if custom_loss:
+                    tta = tta.to(device)
                     loss = criterion(y_hat, labels, tta)
                 else:
                     loss = criterion(y_hat, labels)

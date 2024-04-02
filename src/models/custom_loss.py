@@ -12,15 +12,11 @@ class CustomLoss(nn.Module):
         
         tta = tta / self.frame_rate
 
-        # Calculate binary cross-entropy loss
-        bce_loss = nn.BCELoss(reduction='none')
-        loss = bce_loss(y_pred, y_true)
-
         total_loss = 0
         # Apply the exponential term for each item in the batch
         for i in range(batch_size):
             exp = -torch.exp(torch.max(torch.tensor(0, dtype=torch.float32), tta[i].clone().detach()))
-            exp_loss = -torch.sum(loss[i] * exp)
+            exp_loss = -torch.sum(y_true[i] * exp * y_pred[i])
             total_loss += exp_loss
                 
         # Total loss computation
