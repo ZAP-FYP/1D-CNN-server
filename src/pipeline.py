@@ -91,6 +91,7 @@ def train(
                     loss = criterion(y_hat, labels, tta)
                 else:
                     loss = criterion(y_hat, labels)
+                    print("loss", loss.item())
                 train_loss += loss.item()
 
                 optimizer.zero_grad()
@@ -210,6 +211,9 @@ def train(
         bad_samples = []
         good_samples = []
 
+        test_preds = []
+        test_labels = []
+
         with torch.no_grad():
             for i, (images, labels, tta) in enumerate(test_loader):
                 images = images.to(device)
@@ -229,9 +233,12 @@ def train(
                     test_loss += batch_loss.item()
                 else:
                     batch_loss = criterion(y_hat, labels)
-                    test_loss += batch_loss.item() * labels.size(0)
-
+                    test_loss += batch_loss.item() 
+                    
                 samples_count += labels.size(0)
+
+                test_labels.extend(labels.cpu().numpy())
+                test_preds.extend(y_hat.cpu().numpy())
 
                 if batch_loss.item() > mse_threshold:
                     for y_pred, image, label in zip(y_hat, images, labels):
@@ -243,14 +250,12 @@ def train(
         mean_test_loss = test_loss / len(test_loader)
 
         if collision_flag:
-            labels = labels.cpu().detach().numpy()
-            y_hat = y_hat.cpu().detach().numpy()
-            accuracy = accuracy_score(labels, y_hat)
-            precision = precision_score(labels, y_hat, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
-            recall = recall_score(labels, y_hat)
-            f1 = f1_score(labels, y_hat)
+            accuracy = accuracy_score(test_labels, test_preds)
+            precision = precision_score(test_labels, test_preds, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+            recall = recall_score(test_labels, test_preds)
+            f1 = f1_score(test_labels, test_preds)
 
-            print("Confusion Matrix:\n", confusion_matrix(labels, y_hat))
+            print("Confusion Matrix:\n", confusion_matrix(test_labels, test_preds))
             print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
             if custom_loss:
                 print(f"Custom Loss of test data: {mean_test_loss:.3f}")
