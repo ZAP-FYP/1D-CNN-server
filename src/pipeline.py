@@ -24,7 +24,8 @@ def train(
     collision_flag,
     num_epochs=1000,
     batch_size=25,
-    patience = 40
+    patience = 40, 
+    custom_loss = False
 ):
     
     checkpoint_file = "model/" + model_name + "/model_checkpoint.pth"
@@ -74,8 +75,9 @@ def train(
         for epoch in range(current_epoch, num_epochs):
             train_loss = 0.0
 
-            for i, (images, labels) in enumerate(train_loader):
+            for i, (images, labels, tta) in enumerate(train_loader):
                 images = images.to(device)
+                tta = tta.to(device)
 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
@@ -83,9 +85,12 @@ def train(
                     labels = labels.to(device)
 
                 y_hat = model(images)
-                # print(f'y_hat.shape {y_hat.shape} labels.shape {labels.shape}')
-                
-                loss = criterion(y_hat, labels)
+                y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                                
+                if custom_loss:
+                    loss = criterion(y_hat, labels, tta)
+                else:
+                    loss = criterion(y_hat, labels)
                 train_loss += loss.item()
 
                 optimizer.zero_grad()
@@ -112,8 +117,9 @@ def train(
                 predictions = []
                 true_labels = []
                 
-                for i, (val_images, val_labels) in enumerate(validation_loader):
+                for i, (val_images, val_labels, val_tta) in enumerate(validation_loader):
                     val_images = val_images.to(device)
+                    val_tta = val_tta.to(device)
 
                     if collision_flag:
                         val_labels = val_labels.unsqueeze(1).to(device)
@@ -121,14 +127,18 @@ def train(
                         val_labels = val_labels.to(device)
 
                     val_outputs = model(val_images)
+                    val_outputs = torch.where(val_outputs>0.5, torch.tensor(1.0), torch.tensor(0.0))
                     # print(f'Val - y_hat.shape {val_outputs.shape} labels.shape {val_labels.shape}')
-                    loss = criterion(val_outputs, val_labels)
+                    if custom_loss:
+                        loss = criterion(val_outputs, val_labels, val_tta)
+                    else:
+                        loss = criterion(val_outputs, val_labels)
 
                     val_loss += loss.item()
 
                     # _, predicted = torch.max(val_outputs, 1)
                     true_labels.extend(val_labels.cpu().numpy())
-                    predictions.extend(np.where(val_outputs.cpu().numpy() > 0.5, 1, 0))
+                    predictions.extend(val_outputs.cpu().numpy())
 
                     # print("original loss:",loss)
 
@@ -194,26 +204,33 @@ def train(
         print("Starting testing...")
         model.eval()
         test_loss = 0
+        test_miou = 0.0
         samples_count = 0
-        mse_threshold = 6
+        mse_threshold = 150000
         bad_samples = []
         good_samples = []
 
         with torch.no_grad():
-            for images, labels in test_loader:
+            for i, (images, labels, tta) in enumerate(test_loader):
                 images = images.to(device)
                 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
                 else:
                     labels = labels.to(device)
-
+                
                 y_hat = model(images)
-                batch_loss = criterion(y_hat, labels)
+                y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
 
-                test_preds = np.where(y_hat.cpu().numpy() > 0.5, 1, 0)
+                if custom_loss:
+                    tta = tta.to(device)
+                    batch_loss = criterion(y_hat, labels, tta)
+                    print("batch loss", batch_loss)
+                    test_loss += batch_loss.item()
+                else:
+                    batch_loss = criterion(y_hat, labels)
+                    test_loss += batch_loss.item() * labels.size(0)
 
-                test_loss += batch_loss.item() * labels.size(0)
                 samples_count += labels.size(0)
 
                 if batch_loss.item() > mse_threshold:
@@ -223,7 +240,26 @@ def train(
                     for y_pred, image, label in zip(y_hat, images, labels):
                         good_samples.append((image, label, y_pred))
 
-        # Save visualizations
+        mean_test_loss = test_loss / len(test_loader)
+
+        if collision_flag:
+            labels = labels.cpu().detach().numpy()
+            y_hat = y_hat.cpu().detach().numpy()
+            accuracy = accuracy_score(labels, y_hat)
+            precision = precision_score(labels, y_hat, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
+            recall = recall_score(labels, y_hat)
+            f1 = f1_score(labels, y_hat)
+
+            print("Confusion Matrix:\n", confusion_matrix(labels, y_hat))
+            print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+            if custom_loss:
+                print(f"Custom Loss of test data: {mean_test_loss:.3f}")
+            else:
+                print(f"Mean BCE of test data: {mean_test_loss:.3f}")
+        else:
+            print(f"MSE of test data: {mean_test_loss:.3f}")
+
+                # Save visualizations
         if visualization_flag:
             output_folder_b = "visualizations/test/bad/" + model_name
             os.makedirs(output_folder_b, exist_ok=True)
@@ -241,19 +277,6 @@ def train(
                 os.makedirs(sample_folder, exist_ok=True)
                 visualize(image.unsqueeze(0), label.unsqueeze(0), y_pred.unsqueeze(0), sample_folder, n_th_frame, future_f)
 
-        mean_test_loss = test_loss / samples_count
-
-        if collision_flag:
-            accuracy = accuracy_score(labels, test_preds)
-            precision = precision_score(labels, test_preds, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
-            recall = recall_score(labels, test_preds)
-            f1 = f1_score(labels, test_preds)
-
-            print("Confusion Matrix:\n", confusion_matrix(labels, y_hat))
-            print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-            print(f"Mean BCE of test data: {mean_test_loss:.3f}")
-        else:
-            print(f"MSE of test data: {mean_test_loss:.3f}")
 
             
 

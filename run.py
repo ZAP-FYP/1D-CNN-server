@@ -7,6 +7,7 @@ from src.config import Config
 from src.models.pretrained_model import get_classification_model
 import os
 import sys
+from src.models.custom_loss import CustomLoss
 
 config = Config()
 
@@ -29,7 +30,13 @@ if config.collision_flag and config.pretrained_flag:
     else:
         print("pretrained model does not exist!")
         sys.exit(1)
-    criterion = nn.BCELoss()
+
+    if config.custom_loss:
+        criterion = CustomLoss()
+    else:
+        criterion = nn.BCELoss()
+
+
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
     model_name = config.collision_model_name
 elif config.collision_flag:
@@ -81,13 +88,15 @@ elif config.dataset_type == 'collision':
         test_flag=config.test_flag,
         DRR=config.DRR,
         frame_avg_rate=config.frame_avg_rate,
-        prev_frames=config.prev_f
+        prev_frames=config.prev_f, 
+        custom_loss=config.custom_loss
     )
 
 
 print("Dataset:",  config.dataset_type)
 print("Model:", model_name, "| pretrained layers are frozen:", config.pretrained_flag)
-print("thresold", config.filtering_thresold)
+print("loss function:", criterion)
+print("threshold:", config.filtering_thresold)
 train(
     dataset,
     criterion,
@@ -99,6 +108,9 @@ train(
     config.n_th_frame,
     config.future_f,
     config.visualization_flag,
+    config.collision_flag,
     num_epochs=1000,
     batch_size=256,
+    patience=config.patience, 
+    custom_loss=config.custom_loss
 )
