@@ -140,7 +140,13 @@ total_freq = [total_zero_freq, total_one_freq]
 class_weights = [freq / total_zero_freq+total_one_freq for freq in total_freq]
 # Convert to tensor
 class_weights_tensor = torch.tensor(class_weights)
+# Add a new dimension
+class_weights_tensor = torch.unsqueeze(class_weights_tensor, 0)
 
+# Repeat the tensor along the new dimension
+class_weights_tensor = class_weights_tensor.repeat(5, 1)  # Repeat 5 times along dim 0, and 1 time along dim 1
+
+print(class_weights_tensor)
 # Usage of WeightedDiceLoss with class weights
 criterion = WeightedDiceLoss(class_weights=class_weights_tensor)
 # Define the weighted BCELoss
