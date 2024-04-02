@@ -10,7 +10,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
-from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss
+from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss, WeightedDiceLoss
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def calculate_positive_weight(dataset):
@@ -36,6 +36,11 @@ def calculate_positive_weight(dataset):
     # print(f'positive_weight {positive_weight}')
 
     return positive_ratio    
+def calculate_weights(dataset):
+    num_ones = np.sum(dataset == 1)
+    num_zeros = np.sum(dataset == 0)
+
+    return 1/num_zeros , 1/num_ones   
 # Define parameters
 x_window_size = 10
 y_window_size = 5
@@ -68,16 +73,21 @@ train_data = []
 validation_data = []
 test_data = []
 positive_weights=[]
+zero_freq=[]
+one_freq=[]
 # Iterate over each numpy file
 for file_name in numpy_files:
     # Load numpy file
     data = np.load(os.path.join(config.dataset_path, file_name))
     data = np.squeeze(data)
     positive_weight = calculate_positive_weight(data)
+    num_zeros , num_ones = calculate_weights(data)
     if positive_weight==float('inf'):
         print(f"inf found in {file_name}")
         continue
     positive_weights.append(positive_weight)
+    zero_freq.append(num_zeros)
+    one_freq.append(num_ones)
     # Splitting data into train and test/validation sets
     data_train, data_test_val = train_test_split(data, test_size=0.2, random_state=42)
 
@@ -124,9 +134,18 @@ print(model)
 print("positive weights",positive_weights)
 positive_weight = np.mean(positive_weights) 
 print(f'positive_weight {positive_weight}')
+total_one_freq = sum(one_freq)
+total_zero_freq = sum(zero_freq)
+total_freq = [total_zero_freq, total_one_freq]
+class_weights = [freq / total_zero_freq+total_one_freq for freq in total_freq]
+# Convert to tensor
+class_weights_tensor = torch.tensor(class_weights)
+
+# Usage of WeightedDiceLoss with class weights
+criterion = WeightedDiceLoss(class_weights=class_weights_tensor)
 # Define the weighted BCELoss
 # criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
-criterion = DiceLoss()
+# criterion = DiceLoss()
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 

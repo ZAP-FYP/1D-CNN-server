@@ -319,3 +319,23 @@ class DiceLoss(torch.nn.Module):
         dice_loss = 1 - dice_coeff.mean()
 
         return dice_loss
+
+class WeightedDiceLoss(torch.nn.Module):
+    def __init__(self, smooth=1., class_weights=None):
+        super(WeightedDiceLoss, self).__init__()
+        self.smooth = smooth
+        self.class_weights = class_weights
+
+    def forward(self, prediction, target):
+        prediction = prediction.contiguous()
+        target = target.contiguous()
+
+        intersection = (prediction * target).sum(dim=2).sum(dim=2)
+        dice_coeff = (2. * intersection + self.smooth) / (prediction.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + self.smooth)
+        
+        if self.class_weights is not None:
+            dice_coeff = dice_coeff * self.class_weights
+
+        dice_loss = 1 - dice_coeff.mean()
+
+        return dice_loss
