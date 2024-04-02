@@ -420,6 +420,7 @@ class CollisionDataset:
         DRR=0,
         frame_avg_rate=0,
         prev_frames=10,
+        custom_loss=False
     ):
         self.directory_path = directory_path
         self.split_ratio = split_ratio
@@ -427,12 +428,13 @@ class CollisionDataset:
         self.DRR = DRR
         self.frame_avg_rate = frame_avg_rate
         self.prev_frames = prev_frames
-
+        self.custom_loss = custom_loss
         self.create_dataset()
 
     def get_X_y(self, data):
         X = []
         y = []
+        tta = []
 
         for i in range(len(data) - self.prev_frames):
             # Extract the previous frames for each sample
@@ -446,7 +448,11 @@ class CollisionDataset:
             else:
                 y.append(0)
 
-        return np.array(X), np.array(y)
+            if self.custom_loss:
+                # print(data[i + self.prev_frames]['tta'])
+                tta.append(data[i + self.prev_frames]['tta'])
+        
+        return np.array(X), np.array(y), np.array(tta)
 
     def create_averaged_frames(self, data, avg_rate):
         averaged_frames = []
@@ -472,10 +478,40 @@ class CollisionDataset:
 
         return averaged_frames
 
+    def get_tta(self, data):
+        # Initialize a variable to keep track of the index of the first item with prediction: 1
+        first_prediction_1_index = None
+
+        # Iterate over the items in the JSON data to find the first occurrence of prediction: 1
+        for index, item in enumerate(data):
+            if item.get('prediction_label') == 1:
+                first_prediction_1_index = index
+                break
+        
+        # print("first prediction index", first_prediction_1_index)
+
+        # If no item with prediction: 1 is found, set the first_prediction_1_index to the last index
+        if first_prediction_1_index is None:
+            first_prediction_1_index = len(data)
+
+        # Iterate over the items again to calculate tta
+        for index, item in enumerate(data):
+            if first_prediction_1_index is None or index >= first_prediction_1_index:
+                item['tta'] = 0
+            else:
+                item['tta'] = first_prediction_1_index - index
+
+        # Save the modified data back to the JSON file
+        with open('data_with_tta.json', 'w') as f:
+            json.dump(data, f, indent=4)
+
+        return data
+
     def create_dataset(self):
         total_data = []
         X = []
         y = []
+        tta = []
 
         filenames = [
             f for f in os.listdir(self.directory_path) if not f.startswith(".DS_Store")
@@ -486,24 +522,30 @@ class CollisionDataset:
             with open(file, 'r') as f:
                 data = json.load(f)
 
+            if self.custom_loss:
+                data = self.get_tta(data)
+            
             if self.frame_avg_rate > 0:
                 averaged_frames = self.create_averaged_frames(data, self.frame_avg_rate)
-                X_file, y_file = self.get_X_y(averaged_frames)
+                X_file, y_file, tta_file = self.get_X_y(averaged_frames)
             else:
-                X_file, y_file = self.get_X_y(data)
+                X_file, y_file, tta_file = self.get_X_y(data)
             
             total_data.extend(data)
             X.extend(X_file)
             y.extend(y_file)
+            tta.extend(tta_file)
 
         X = np.array(X)
         y = np.array(y)
+        tta = np.array(tta)
 
         print("total data: ", np.array(total_data).shape)
         print(f"X shape: {X.shape}, y shape: {y.shape}")
-        # print(y)
+        print("tta", len(tta))
         np.save("X.npy", X)
         np.save("y.npy", y)
+
         # Convert X to a list of lists
         # Convert numpy arrays to lists
         data_list = []
@@ -511,8 +553,11 @@ class CollisionDataset:
         for i in range(10):
             x_data = X[i].tolist()  # Convert numpy array to list
             y_data = y[i].item()    # Convert numpy int64 to Python int
+            if tta.size > 0:
+                tta_data = tta[i].item()
+                data_list.append({"X": x_data, "y": y_data, "tta": tta_data})
             data_list.append({"X": x_data, "y": y_data})
-
+        
         # Save data as JSON
         with open("data.json", "w") as json_file:
             json.dump(data_list, json_file,indent=4)
@@ -527,22 +572,22 @@ class CollisionDataset:
         val_idx = int(idx * self.split_ratio)
 
         if self.DRR == 0:
-            self.train_dataset = DrivableDataset(X[:val_idx:], y[:val_idx:])
+            self.train_dataset = DrivableDataset(X[:val_idx:], y[:val_idx:], tta[:val_idx:])
             self.validation_dataset = DrivableDataset(
-                X[val_idx:idx:], y[val_idx:idx:]
+                X[val_idx:idx:], y[val_idx:idx:], tta[val_idx:idx:]
             )
             self.test_dataset = DrivableDataset(
-                X[idx ::], y[idx ::]
+                X[idx ::], y[idx ::], tta[idx ::]
             )
         else:
             self.train_dataset = DrivableDataset(
-                X[: val_idx : self.DRR], y[: val_idx : self.DRR]
+                X[: val_idx : self.DRR], y[: val_idx : self.DRR], tta[: val_idx : self.DRR]
             )
             self.validation_dataset = DrivableDataset(
-                X[val_idx : idx : self.DRR], y[val_idx : idx : self.DRR]
+                X[val_idx : idx : self.DRR], y[val_idx : idx : self.DRR], tta[val_idx : idx : self.DRR]
             )
             self.test_dataset = DrivableDataset(
-                X[idx :: self.DRR], y[idx :: self.DRR]
+                X[idx :: self.DRR], y[idx :: self.DRR], tta[idx :: self.DRR]
             )
 
         print(f'Train samples {len(self.train_dataset)}')
@@ -550,13 +595,20 @@ class CollisionDataset:
         print(f'Test samples {len(self.test_dataset)}')
 
 class DrivableDataset(Dataset):
-    def __init__(self, X, y):
+    def __init__(self, X, y, tta):
         self.X = torch.from_numpy(X).float().requires_grad_()
         self.y = torch.from_numpy(y).float().requires_grad_()
+        if len(tta) > 0:
+            self.tta = torch.from_numpy(tta).float().requires_grad_()
+        else:
+            self.tta = torch.tensor([])
         self.n_samples = X.shape[0]
 
     def __getitem__(self, index):
-        return self.X[index], self.y[index]
+        if self.tta is not None and len(self.tta) > 0:
+            return self.X[index], self.y[index], self.tta[index]
+        else:
+            return self.X[index], self.y[index], torch.tensor([])
 
     def __len__(self):
         return self.n_samples

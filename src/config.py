@@ -22,6 +22,7 @@ class Config:
             self.patience = config("PATIENCE", cast=int)
             self.pretrained_flag = config("PRETRAINED_FLAG", cast=bool)
             self.filtering_thresold = config("FILTERING_THRESOLD")
+            self.custom_loss = config("CUSTOM_LOSS", cast=bool)
 
 
         except UndefinedValueError as e:
