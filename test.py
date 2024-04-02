@@ -78,16 +78,19 @@ def visualize_frames(np_file, num_frames=500):
 #     print("Error: Unable to open HDF5 file.")
 
 # Function to detect top edge of drivable area
-def detect_top_edge(frame):
+# def detect_top_edge(frame):
     # Find indices of non-zero elements along the vertical axis (along columns)
-    nonzero_indices = np.nonzero(frame)[0]
-    if len(nonzero_indices) > 0:
-        # Get the index of the top edge
-        top_edge_index = np.min(nonzero_indices)
-        return top_edge_index
-    else:
-        # If no drivable area is detected, return -1
-        return -1
+    # nonzero_indices = np.nonzero(frame)
+    # # print(f'non zero index {nonzero_indices}')
+    # print(frame.shape)
+    # if len(nonzero_indices) > 0:
+    #     # Get the index of the top edge
+    #     top_edge_index = np.min(nonzero_indices)
+    #     return top_edge_index
+    # else:
+    #     # If no drivable area is detected, return -1
+    #     return -1
+
 numpy_files = [f for f in os.listdir(config.dataset_path) if f.endswith('.npy')]
 
 # Iterate over numpy files
@@ -103,10 +106,20 @@ for file_name in numpy_files:
     # Iterate over frames in the data
     for i, frame in enumerate(data):
         # Detect top edge of drivable area
-        top_edge_index = detect_top_edge(frame)
-        if top_edge_index != -1:
-            # Set all pixels below the top edge to 1
-            frame[top_edge_index:, :] = 1
+        # frame = detect_top_edge(frame)
+        # if top_edge_index != -1:
+        #     # Set all pixels below the top edge to 1
+        #     frame[top_edge_index:, :] = 1
+        for col in range(frame.shape[1]):
+        # Find the index of the first occurrence of '1' in the column
+            idx = np.argmax(frame[:, col])
+            # print(idx.size)
+            # if len(idx) == 168:
+            #     frame[:, col] = 0
+            if np.any(frame[:, col]):
+
+            # Set all values below this index to '1'
+                frame[idx:, col] = 1
         all_frames.append(frame)
         # Save modified frame
     save_path = os.path.join(save_dir, f"{file_name}.npy")
