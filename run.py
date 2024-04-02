@@ -32,7 +32,7 @@ if config.collision_flag and config.pretrained_flag:
         sys.exit(1)
 
     if config.custom_loss:
-        criterion = CustomLoss()
+        criterion = CustomLoss(frame_rate=config.frame_rate/config.frame_avg_rate)
     else:
         criterion = nn.BCELoss()
 

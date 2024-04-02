@@ -470,11 +470,21 @@ class CollisionDataset:
             new_frame_id = frame_id_counter
             frame_id_counter += 1
 
-            averaged_frames.append({
-                'frame_id': new_frame_id,
-                'numpy_coordinates': averaged_frame,
-                'prediction_label': averaged_label
-            })
+            if self.custom_loss:
+                tta_subset = [frame['tta'] for frame in data[i:i+avg_rate]]
+                averaged_tta = np.mean(tta_subset)
+                averaged_frames.append({
+                    'frame_id': new_frame_id,
+                    'numpy_coordinates': averaged_frame,
+                    'prediction_label': averaged_label, 
+                    'tta': averaged_tta
+                })
+            else:
+                averaged_frames.append({
+                    'frame_id': new_frame_id,
+                    'numpy_coordinates': averaged_frame,
+                    'prediction_label': averaged_label
+                })
 
         return averaged_frames
 
@@ -542,7 +552,6 @@ class CollisionDataset:
 
         print("total data: ", np.array(total_data).shape)
         print(f"X shape: {X.shape}, y shape: {y.shape}")
-        print("tta", len(tta))
         np.save("X.npy", X)
         np.save("y.npy", y)
 
