@@ -3,14 +3,14 @@ import torch.nn as nn
 import numpy as np
 
 class CustomLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, frame_rate):
         super(CustomLoss, self).__init__()
+        self.frame_rate = frame_rate
 
     def forward(self, y_pred, y_true, tta):
         batch_size = y_pred.size(0)  # Get batch size
         
-        frame_rate = 1
-        tta = tta / frame_rate
+        tta = tta / self.frame_rate
 
         # Calculate binary cross-entropy loss
         bce_loss = nn.BCELoss(reduction='none')

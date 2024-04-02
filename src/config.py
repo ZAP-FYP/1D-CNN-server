@@ -12,6 +12,7 @@ class Config:
             self.future_f = config("FUTURE_FRAMES", cast=int)
             self.start_f = config("START_FUTURE", cast=int)
             self.frame_avg_rate = config("FRAME_AVG_RATE", cast=int)
+            self.frame_rate = config("FRAME_RATE", cast=int)
             self.DRR = config("DATA_REDUCTION_RATE", cast=int)
             self.model_name = config("MODEL_NAME")
             self.collision_model_name = config("COLLISION_MODEL_NAME")
