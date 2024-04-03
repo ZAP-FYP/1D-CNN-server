@@ -46,7 +46,7 @@ def calculate_weights(dataset):
 # Define parameters
 x_window_size = 10
 y_window_size = 5
-stride = 6
+stride = 1
 batch_size = 64
 num_epochs = 1000
 learning_rate = 0.001
