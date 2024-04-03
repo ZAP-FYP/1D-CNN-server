@@ -10,7 +10,9 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
-from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual, DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss, WeightedDiceLoss
+from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual,\
+     DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss,\
+     WeightedDiceLoss, IoULoss, FocalLoss
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def calculate_positive_weight(dataset):
@@ -130,28 +132,31 @@ test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 model = UNet(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
-# criterion = nn.BCELoss()
-print("positive weights",positive_weights)
-positive_weight = np.mean(positive_weights) 
-print(f'positive_weight {positive_weight}')
-total_one_freq = sum(one_freq)
-total_zero_freq = sum(zero_freq)
-total_freq = [total_zero_freq, total_one_freq]
-class_weights = [freq / total_zero_freq+total_one_freq for freq in total_freq]
-# Convert to tensor
-class_weights_tensor = torch.tensor(class_weights)
-# Add a new dimension
-class_weights_tensor = torch.unsqueeze(class_weights_tensor, 0)
+# # criterion = nn.BCELoss()
+# print("positive weights",positive_weights)
+# positive_weight = np.mean(positive_weights) 
+# print(f'positive_weight {positive_weight}')
+# total_one_freq = sum(one_freq)
+# total_zero_freq = sum(zero_freq)
+# total_freq = [total_zero_freq, total_one_freq]
+# class_weights = [freq / total_zero_freq+total_one_freq for freq in total_freq]
+# # Convert to tensor
+# class_weights_tensor = torch.tensor(class_weights)
+# # Add a new dimension
+# class_weights_tensor = torch.unsqueeze(class_weights_tensor, 0)
 
-# Repeat the tensor along the new dimension
-class_weights_tensor = class_weights_tensor.repeat(5, 1)  # Repeat 5 times along dim 0, and 1 time along dim 1
+# # Repeat the tensor along the new dimension
+# class_weights_tensor = class_weights_tensor.repeat(5, 1)  # Repeat 5 times along dim 0, and 1 time along dim 1
 
-print(class_weights_tensor)
+# print(class_weights_tensor)
 # Usage of WeightedDiceLoss with class weights
-criterion = WeightedDiceLoss(class_weights=class_weights_tensor)
+# criterion = WeightedDiceLoss(class_weights=class_weights_tensor)
 # Define the weighted BCELoss
 # criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
 # criterion = DiceLoss()
+# criterion = IoULoss()
+criterion = FocalLoss()
+
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
