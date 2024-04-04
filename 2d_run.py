@@ -249,9 +249,9 @@ for batch_x, batch_y in test_dataloader:
     batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
     optimizer.zero_grad()
     output = model(batch_x.float())
-    output = output.view(-1)
-    batch_y = batch_y.view(-1)
-    loss = criterion(output, batch_y.float())
+    output_flat = output.view(-1)
+    batch_y_flat = batch_y.view(-1)
+    loss = criterion(output_flat, batch_y_flat.float())
     loss.backward()
     optimizer.step()
     
