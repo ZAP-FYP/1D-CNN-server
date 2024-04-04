@@ -46,7 +46,7 @@ def calculate_weights(dataset):
 # Define parameters
 x_window_size = 10
 y_window_size = 5
-stride = 1
+stride = 6
 batch_size = 64
 num_epochs = 1000
 learning_rate = 0.001
@@ -133,9 +133,9 @@ test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 model = UNet(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
 # # criterion = nn.BCELoss()
-# print("positive weights",positive_weights)
-# positive_weight = np.mean(positive_weights) 
-# print(f'positive_weight {positive_weight}')
+print("positive weights",positive_weights)
+positive_weight = np.mean(positive_weights) 
+print(f'positive_weight {positive_weight}')
 # total_one_freq = sum(one_freq)
 # total_zero_freq = sum(zero_freq)
 # total_freq = [total_zero_freq, total_one_freq]
@@ -152,7 +152,7 @@ print(model)
 # Usage of WeightedDiceLoss with class weights
 # criterion = WeightedDiceLoss(class_weights=class_weights_tensor)
 # Define the weighted BCELoss
-# criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
+criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
 # criterion = DiceLoss()
 # criterion = IoULoss()
 criterion = FocalLoss()
@@ -184,7 +184,8 @@ for epoch in range(num_epochs):
 
         optimizer.zero_grad()
         output = model(batch_x.float())
-
+        output = output.view(-1)
+        batch_y = batch_y.view(-1)
         loss = criterion(output, batch_y.float())
         loss.backward()
         optimizer.step()
@@ -202,6 +203,8 @@ for epoch in range(num_epochs):
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
         optimizer.zero_grad()
         output = model(batch_x.float())
+        output = output.view(-1)
+        batch_y = batch_y.view(-1)
         loss = criterion(output, batch_y.float())
         loss.backward()
         optimizer.step()
@@ -246,6 +249,8 @@ for batch_x, batch_y in test_dataloader:
     batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
     optimizer.zero_grad()
     output = model(batch_x.float())
+    output = output.view(-1)
+    batch_y = batch_y.view(-1)
     loss = criterion(output, batch_y.float())
     loss.backward()
     optimizer.step()
