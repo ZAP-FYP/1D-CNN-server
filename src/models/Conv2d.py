@@ -304,6 +304,16 @@ class UNet(nn.Module):
         output = torch.sigmoid(output)  # Applying sigmoid to ensure output is in [0,1] range
         
         return output
+class UNet_Baseline(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UNet_Baseline, self).__init__()
+        # Output
+
+    def forward(self, x):
+       
+        output = input[-5:]  # Applying sigmoid to ensure output is in [0,1] range
+        
+        return output
 
 class DiceLoss(torch.nn.Module):
     def __init__(self, smooth=1.):
