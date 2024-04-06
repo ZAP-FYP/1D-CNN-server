@@ -357,13 +357,10 @@ class UNetWithRNN(nn.Module):
         
         # RNN Input Preparation
         batch_size, channels, height, width = bottleneck.size()
-        print(f'bottleneck.size(){bottleneck.size()}')
         rnn_input = bottleneck.view(batch_size, channels, -1).permute(0, 2, 1)  # Reshape for LSTM
-        print(f'rnn_input.size(){rnn_input.size()}')
 
         # Apply RNN
         rnn_output, _ = self.rnn(rnn_input)
-        print(f'rnn_output.size(){rnn_output.size()}')
 
         rnn_output = rnn_output.permute(0, 2, 1).view(batch_size, channels, height, width)  # Reshape back
         
