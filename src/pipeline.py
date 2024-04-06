@@ -66,6 +66,7 @@ def train(
     # print(f"Model summary : {summary(model, (in_channels, in_seq_len))}")
     # torchinfo.summary(model, (in_channels, 10, 100), device="cpu")
     print(model)
+
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
@@ -91,7 +92,6 @@ def train(
                     loss = criterion(y_hat, labels, tta)
                 else:
                     loss = criterion(y_hat, labels)
-                    print("loss", loss.item())
                 train_loss += loss.item()
 
                 optimizer.zero_grad()

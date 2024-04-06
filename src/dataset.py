@@ -193,9 +193,9 @@ class SimpleFrameDataset:
         self.generate_frames()
         self.split_frames()
         self.create_numpy_arrays()
-        self.train_dataset = DrivableAreaDataset(self.x_train_duplicate, self.flatten_y)
-        self.validation_dataset = DrivableAreaDataset(self.x_val, self.flatten_y_val)
-        self.test_dataset = DrivableAreaDataset(self.x_test, self.flatten_y_test)
+        self.train_dataset = DrivableDataset(self.x_train_duplicate, self.flatten_y)
+        self.validation_dataset = DrivableDataset(self.x_val, self.flatten_y_val)
+        self.test_dataset = DrivableDataset(self.x_test, self.flatten_y_test)
 
 
 class VideoFrameDataset:
@@ -228,8 +228,8 @@ class VideoFrameDataset:
         X = [data[i : i + prev_frames] for i in range(len(data[:-window_size]))]
         X_frame_diffs = [self.calculate_frame_diff(sample) for sample in X]
         
-        print(X_frame_diffs[:10])
-        print("mean:",np.mean(X_frame_diffs))
+        # print(X_frame_diffs[:10])
+        # print("mean:",np.mean(X_frame_diffs))
         # for frame_index, frame in enumerate(X_file):
             #     if np.all(frame == 0):
             #         start_index = max(0, frame_index - 10)
@@ -250,7 +250,7 @@ class VideoFrameDataset:
             ]
         filtered_X = []
         filtered_y = []
-        print("old:",np.array(X).shape)
+        # print("old:",np.array(X).shape)
 
         with open("filtered_data.txt", "w") as file:
             for i, diff in enumerate(X_frame_diffs):
@@ -263,7 +263,7 @@ class VideoFrameDataset:
                     filtered_y.append(y[i])
 
 
-        print("new:",np.array(filtered_X).shape)
+        # print("new:",np.array(filtered_X).shape)
         return np.array(filtered_X), np.array(filtered_y)
         # return np.array(X), np.array(y)
 
@@ -321,21 +321,21 @@ class VideoFrameDataset:
         val_idx = int(idx * self.split_ratio)
 
         if self.DRR == 0:
-            self.train_dataset = DrivableAreaDataset(X[:val_idx:], flatten_y[:val_idx:])
-            self.validation_dataset = DrivableAreaDataset(
+            self.train_dataset = DrivableDataset(X[:val_idx:], flatten_y[:val_idx:])
+            self.validation_dataset = DrivableDataset(
                 X[val_idx:idx:], flatten_y[val_idx:idx:]
             )
-            self.test_dataset = DrivableAreaDataset(
+            self.test_dataset = DrivableDataset(
                 X[idx ::], flatten_y[idx ::]
             )
         else:
-            self.train_dataset = DrivableAreaDataset(
+            self.train_dataset = DrivableDataset(
                 X[: val_idx : self.DRR], flatten_y[: val_idx : self.DRR]
             )
-            self.validation_dataset = DrivableAreaDataset(
+            self.validation_dataset = DrivableDataset(
                 X[val_idx : idx : self.DRR], flatten_y[val_idx : idx : self.DRR]
             )
-            self.test_dataset = DrivableAreaDataset(
+            self.test_dataset = DrivableDataset(
                 X[idx :: self.DRR], flatten_y[idx :: self.DRR]
         )
         
@@ -609,7 +609,7 @@ class CollisionDataset:
         print(f'Test samples {len(self.test_dataset)}')
 
 class DrivableDataset(Dataset):
-    def __init__(self, X, y, tta):
+    def __init__(self, X, y, tta=torch.tensor([])):
         self.X = torch.from_numpy(X).float().requires_grad_()
         self.y = torch.from_numpy(y).float().requires_grad_()
         if len(tta) > 0:
