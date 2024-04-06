@@ -462,6 +462,52 @@ class FocalLoss(nn.Module):
                        
         return focal_loss
 
+import torch.nn.functional as F
+
+ALPHA = 0.8
+GAMMA = 2
+SMOOTH = 1
+
+class FocalLossWithDiversityPenalty(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(FocalLossWithDiversityPenalty, self).__init__()
+
+    def forward(self, inputs, targets, alpha=ALPHA, gamma=GAMMA, smooth=SMOOTH):
+        # Flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        
+        # First compute binary cross-entropy 
+        BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
+        BCE_EXP = torch.exp(-BCE)
+        focal_loss = alpha * (1 - BCE_EXP) ** gamma * BCE
+        
+        # Compute diversity penalty
+        diversity_penalty = self.compute_diversity_penalty(inputs)
+        
+        # Add diversity penalty to focal loss
+        total_loss = focal_loss + diversity_penalty
+        
+        return total_loss
+    
+    def compute_diversity_penalty(self, inputs):
+        # Compute diversity penalty based on the standard deviation of predictions across the five output channels
+        # Inputs shape: [batch_size * num_channels * height * width]
+        batch_size, num_channels, _, _ = inputs.size()
+        
+        # Reshape inputs to [batch_size, num_channels, -1]
+        inputs_reshaped = inputs.view(batch_size, num_channels, -1)
+        
+        # Compute mean prediction across channels for each pixel
+        mean_prediction = torch.mean(inputs_reshaped, dim=1, keepdim=True)
+        
+        # Compute diversity penalty based on standard deviation
+        diversity_penalty = torch.std(inputs_reshaped, dim=1, keepdim=True)
+        diversity_penalty = torch.mean(diversity_penalty)
+        
+        return diversity_penalty
+
+
 class DiceBCELoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(DiceBCELoss, self).__init__()

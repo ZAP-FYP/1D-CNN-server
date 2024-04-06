@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual,\
      DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss,\
-     WeightedDiceLoss, IoULoss, FocalLoss, DiceBCELoss, TverskyLoss, UNetWithRNN
+     WeightedDiceLoss, IoULoss, FocalLoss, DiceBCELoss, TverskyLoss, UNetWithRNN,\
+         FocalLossWithDiversityPenalty
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def calculate_positive_weight(dataset):
@@ -21,7 +22,7 @@ def calculate_positive_weight(dataset):
     # Calculate the positive class ratio
     positive_ratio = num_zeros / num_ones
     return positive_ratio  
-      
+
 def calculate_weights(dataset):
     num_ones = np.sum(dataset == 1)
     num_zeros = np.sum(dataset == 0)
@@ -139,7 +140,8 @@ print(model)
 # criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
 # criterion = DiceLoss()
 # criterion = IoULoss()
-criterion = FocalLoss()
+# criterion = FocalLoss()
+criterion = FocalLossWithDiversityPenalty()
 # criterion = DiceBCELoss()
 # criterion = TverskyLoss()
 
