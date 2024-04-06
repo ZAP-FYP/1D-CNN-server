@@ -308,7 +308,7 @@ import torch
 import torch.nn as nn
 
 class UNetWithRNN(nn.Module):
-    def __init__(self, in_channels, out_channels, hidden_size=64, num_layers=1, rnn_type='LSTM'):
+    def __init__(self, in_channels, out_channels, hidden_size=256, num_layers=1, rnn_type='LSTM'):
         super(UNetWithRNN, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -356,10 +356,16 @@ class UNetWithRNN(nn.Module):
         bottleneck = self.bottleneck_conv(self.pool(enc2))
         
         # RNN Input Preparation
-        rnn_input = bottleneck.unsqueeze(1)  # Add temporal dimension
-        
+        batch_size, channels, height, width = bottleneck.size()
+        print(f'bottleneck.size(){bottleneck.size()}')
+        rnn_input = bottleneck.view(batch_size, channels, -1).permute(0, 2, 1)  # Reshape for LSTM
+        print(f'rnn_input.size(){rnn_input.size()}')
+
         # Apply RNN
         rnn_output, _ = self.rnn(rnn_input)
+        print(f'rnn_output.size(){rnn_output.size()}')
+
+        rnn_output = rnn_output.permute(0, 2, 1).view(batch_size, channels, height, width)  # Reshape back
         
         # Decoder Path
         dec1 = self.upconv1(rnn_output.squeeze(1))
