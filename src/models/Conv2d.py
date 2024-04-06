@@ -304,16 +304,78 @@ class UNet(nn.Module):
         output = torch.sigmoid(output)  # Applying sigmoid to ensure output is in [0,1] range
         
         return output
-class UNet_Baseline(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(UNet_Baseline, self).__init__()
+import torch
+import torch.nn as nn
+
+class UNetWithRNN(nn.Module):
+    def __init__(self, in_channels, out_channels, hidden_size=64, num_layers=1, rnn_type='LSTM'):
+        super(UNetWithRNN, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.rnn_type = rnn_type
+        
+        # Encoder Path
+        self.encoder_conv1 = self.conv_block(in_channels, 64)
+        self.encoder_conv2 = self.conv_block(64, 128)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # Bottleneck
+        self.bottleneck_conv = self.conv_block(128, 256)
+        
+        # Recurrent Layer
+        if rnn_type == 'LSTM':
+            self.rnn = nn.LSTM(256, hidden_size, num_layers, batch_first=True)
+        elif rnn_type == 'GRU':
+            self.rnn = nn.GRU(256, hidden_size, num_layers, batch_first=True)
+        
+        # Decoder Path
+        self.upconv1 = nn.ConvTranspose2d(hidden_size, 128, kernel_size=2, stride=2)
+        self.decoder_conv1 = self.conv_block(256, 128)
+        self.upconv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+        self.decoder_conv2 = self.conv_block(128, 64)
+        
         # Output
+        self.output_conv = nn.Conv2d(64, out_channels, kernel_size=1)
+
+    def conv_block(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True)
+        )
 
     def forward(self, x):
-       
-        output = input[-5:]  # Applying sigmoid to ensure output is in [0,1] range
+        # Encoder Path
+        enc1 = self.encoder_conv1(x)
+        enc2 = self.encoder_conv2(self.pool(enc1))
+        
+        # Bottleneck
+        bottleneck = self.bottleneck_conv(self.pool(enc2))
+        
+        # RNN Input Preparation
+        rnn_input = bottleneck.unsqueeze(1)  # Add temporal dimension
+        
+        # Apply RNN
+        rnn_output, _ = self.rnn(rnn_input)
+        
+        # Decoder Path
+        dec1 = self.upconv1(rnn_output.squeeze(1))
+        dec1 = torch.cat([enc2, dec1], dim=1)
+        dec1 = self.decoder_conv1(dec1)
+        
+        dec2 = self.upconv2(dec1)
+        dec2 = torch.cat([enc1, dec2], dim=1)
+        dec2 = self.decoder_conv2(dec2)
+        
+        # Output
+        output = self.output_conv(dec2)
+        output = torch.sigmoid(output)  # Applying sigmoid to ensure output is in [0,1] range
         
         return output
+
 
 class DiceLoss(torch.nn.Module):
     def __init__(self, smooth=1.):
