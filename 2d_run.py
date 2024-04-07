@@ -240,8 +240,8 @@ for batch_x, batch_y in test_dataloader:
     output_flat = output.view(-1)
     batch_y_flat = batch_y.view(-1)
     loss = criterion(output_flat, batch_y_flat.float())
-    loss.backward()
-    optimizer.step()
+    # loss.backward()
+    # optimizer.step()
     
     test_epoch_loss += loss.item()  # Accumulate the loss for the batch
     num_batches += 1  # Increment the batch counter
