@@ -79,13 +79,13 @@ def train(
             for i, (images, labels, tta) in enumerate(train_loader):
                 images = images.to(device)
 
+                y_hat = model(images)
+
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
+                    y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
-
-                y_hat = model(images)
-                y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
                                 
                 if custom_loss:
                     tta = tta.to(device)
@@ -120,17 +120,18 @@ def train(
                 
                 for i, (val_images, val_labels, val_tta) in enumerate(validation_loader):
                     val_images = val_images.to(device)
-                    val_tta = val_tta.to(device)
+
+                    val_outputs = model(val_images)
 
                     if collision_flag:
                         val_labels = val_labels.unsqueeze(1).to(device)
+                        val_outputs = torch.where(val_outputs>0.5, torch.tensor(1.0), torch.tensor(0.0))
                     else:
                         val_labels = val_labels.to(device)
 
-                    val_outputs = model(val_images)
-                    val_outputs = torch.where(val_outputs>0.5, torch.tensor(1.0), torch.tensor(0.0))
                     # print(f'Val - y_hat.shape {val_outputs.shape} labels.shape {val_labels.shape}')
                     if custom_loss:
+                        val_tta = val_tta.to(device)
                         loss = criterion(val_outputs, val_labels, val_tta)
                     else:
                         loss = criterion(val_outputs, val_labels)
@@ -217,19 +218,17 @@ def train(
         with torch.no_grad():
             for i, (images, labels, tta) in enumerate(test_loader):
                 images = images.to(device)
+                y_hat = model(images)
                 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
+                    y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
                 
-                y_hat = model(images)
-                y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
-
                 if custom_loss:
                     tta = tta.to(device)
                     batch_loss = criterion(y_hat, labels, tta)
-                    print("batch loss", batch_loss)
                     test_loss += batch_loss.item()
                 else:
                     batch_loss = criterion(y_hat, labels)
