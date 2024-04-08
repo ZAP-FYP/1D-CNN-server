@@ -350,19 +350,11 @@ class UNetWithRNN(nn.Module):
     def forward(self, x):
         # Encoder Path
         enc1 = self.encoder_conv1(x)
-        # RNN Input Preparation
-        batch_size, channels, height, width = enc1.size()
-        rnn_input = enc1.view(batch_size, channels, -1).permute(0, 2, 1)  # Reshape for LSTM
-
-        # Apply RNN
-        rnn_output, _ = self.rnn(rnn_input)
-
-        rnn_output = rnn_output.permute(0, 2, 1).view(batch_size, channels, height, width)  # Reshape back
-        
-        enc2 = self.encoder_conv2(self.pool(rnn_output.squeeze(1)))
+        enc2 = self.encoder_conv2(self.pool(enc1))
         
         # Bottleneck
         bottleneck = self.bottleneck_conv(self.pool(enc2))
+        
         
 
         # Decoder Path
@@ -374,8 +366,18 @@ class UNetWithRNN(nn.Module):
         dec2 = torch.cat([enc1, dec2], dim=1)
         dec2 = self.decoder_conv2(dec2)
         
+        # RNN Input Preparation
+        batch_size, channels, height, width = dec2.size()
+        rnn_input = dec2.view(batch_size, channels, -1).permute(0, 2, 1)  # Reshape for LSTM
+
+        # Apply RNN
+        rnn_output, _ = self.rnn(rnn_input)
+
+        rnn_output = rnn_output.permute(0, 2, 1).view(batch_size, channels, height, width)  # Reshape back
+        
+
         # Output
-        output = self.output_conv(dec2)
+        output = self.output_conv(rnn_output.squeeze(1))
         output = torch.sigmoid(output)  # Applying sigmoid to ensure output is in [0,1] range
         
         return output
