@@ -8,6 +8,7 @@ from datetime import datetime
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
 from PIL import Image
+import torch.nn as nn
 
 
 def train(
@@ -179,10 +180,10 @@ def train(
                     accuracy = accuracy_score(true_labels, predictions)
                     precision = precision_score(true_labels, predictions, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
                     recall = recall_score(true_labels, predictions)
-                    f1 = f1_score(true_labels, predictions)
+                    f1_collision = f1_score(true_labels, predictions)
 
                     print("Confusion Matrix:\n", confusion_matrix(true_labels, predictions))
-                    print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+                    print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1_collision:.4f}")
                 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -207,6 +208,9 @@ def train(
         model.eval()
         test_loss = 0
         test_miou = 0.0
+        avg_precision = 0.0
+        test_f1 = 0.0
+        test_bce = 0.0
         samples_count = 0
         mse_threshold = 150000
         bad_samples = []
@@ -245,23 +249,39 @@ def train(
                 else:
                     for y_pred, image, label in zip(y_hat, images, labels):
                         good_samples.append((image, label, y_pred))
-
-        mean_test_loss = test_loss / len(test_loader)
+                
+                ious, precisions, f1_scores, bce_losses = get_metrics(labels.reshape(labels.size(0), future_f, 100), y_hat.reshape(y_hat.size(0), future_f, 100))
+                # print("ious:", ious)
+                test_miou += (sum(ious)/(labels.size(0)*future_f))
+                avg_precision += (sum(precisions)/(labels.size(0)*future_f))
+                test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
+                test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
+                
+        mean_test_loss = test_loss / samples_count
+        test_miou /= len(test_loader)
+        avg_precision /= len(test_loader)
+        test_f1 /= len(test_loader)
+        test_bce /= len(test_loader)
 
         if collision_flag:
             accuracy = accuracy_score(test_labels, test_preds)
             precision = precision_score(test_labels, test_preds, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
             recall = recall_score(test_labels, test_preds)
-            f1 = f1_score(test_labels, test_preds)
+            f1_collision = f1_score(test_labels, test_preds)
 
             print("Confusion Matrix:\n", confusion_matrix(test_labels, test_preds))
-            print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+            print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1_collision:.4f}")
             if custom_loss:
                 print(f"Custom Loss of test data: {mean_test_loss:.3f}")
             else:
                 print(f"Mean BCE of test data: {mean_test_loss:.3f}")
         else:
             print(f"MSE of test data: {mean_test_loss:.3f}")
+            print("BCE for test data:", test_bce)
+            print("IOU for test data:", test_miou)
+            print("AP for test data:", avg_precision)
+            print("F1 for test data:", test_f1)
+
 
                 # Save visualizations
         if visualization_flag:
@@ -354,3 +374,98 @@ def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, fu
             print(e)
         finally:
             plt.close()  # Close the plot after saving
+
+
+def get_metrics(labels, yhats):
+    # gives the segmentation matrices for a given array
+    ious = []
+    precisions = []
+    f1_scores = []
+    bce_losses = []
+
+    labels_max_value = torch.max(torch.max(labels.view(-1, 100), dim=1)[0], dim=0)[0].item()
+    yhats_max_value = torch.max(torch.max(yhats.view(-1, 100), dim=1)[0], dim=0)[0].item()
+    ultimate_max_value = max(labels_max_value, yhats_max_value)
+    # print("Ultimate max value:", ultimate_max_value)
+
+    for i in range(labels.size(0)):
+        # print(labels[i].shape)
+        for j in range(labels[i].size(0)):
+            label_seg_matrix = get_segmentation_matrix(labels[i][j], ultimate_max_value)
+            yhat_seg_matrix = get_segmentation_matrix(yhats[i][j], ultimate_max_value)
+            iou = calculate_iou(label_seg_matrix, yhat_seg_matrix)
+            precision = calculate_precision(label_seg_matrix, yhat_seg_matrix)
+            recall = calculate_recall(label_seg_matrix, yhat_seg_matrix)
+            f1 = calculate_f1_score(precision, recall)
+
+            bce = calculate_bce(label_seg_matrix, yhat_seg_matrix)
+            # print("bce", bce)
+            
+            ious.append(iou)
+            precisions.append(precision)
+            f1_scores.append(f1)
+            bce_losses.append(bce)
+    
+    return ious, precisions, f1_scores, bce_losses
+
+
+def get_segmentation_matrix(array, max_size):
+    # Create an empty binary matrix
+    max_size = round(max_size * 2)
+    binary_matrix = torch.zeros((max_size, 100), dtype=torch.int)
+
+    # Iterate through each row and column
+    for i in range(100):
+        for j in range(100):
+            # Check if row index is greater than the corresponding value in data array
+            if i > array[j]:
+                binary_matrix[i, j] = 0
+            else:
+                binary_matrix[i, j] = 1
+    
+    # Plot the binary matrix
+    # plt.figure(figsize=(8, 6))
+    # plt.imshow(binary_matrix, cmap='binary', interpolation='nearest')
+    # plt.colorbar(label='Binary Value')
+    # plt.title('Binary Matrix Visualization')
+    # plt.xlabel('Column Index')
+    # plt.ylabel('Row Index')
+    # plt.gca().invert_yaxis()
+    # plt.savefig("seg_matrix_for_iou.jpg")
+
+    return binary_matrix
+
+
+def calculate_iou(y_true, y_pred):
+    intersection = torch.logical_and(y_pred, y_true).sum()
+    union = torch.logical_or(y_pred, y_true).sum()
+    iou = intersection.float() / union.float()
+    return iou.item() 
+
+def calculate_precision(y_true, y_pred):
+    TP = (y_true * y_pred).sum().item()
+    FP = ((1 - y_true) * y_pred).sum().item()
+    FN = (y_true * (1 - y_pred)).sum().item()
+
+    # Calculate precision
+    precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
+    return precision
+
+def calculate_recall(y_true, y_pred):
+    # Calculate true positives (TP), false positives (FP), and false negatives (FN)
+    TP = (y_true * y_pred).sum().item()
+    FP = ((1 - y_true) * y_pred).sum().item()
+    FN = (y_true * (1 - y_pred)).sum().item()
+
+    # Calculate recall
+    recall = TP / (TP + FN) if (TP + FN) > 0 else 0.0
+    return recall
+
+def calculate_f1_score(precision, recall):
+    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    return f1_score
+
+def calculate_bce(y_true, y_pred):
+    criterion = nn.BCELoss()
+    loss = criterion(y_pred.float(), y_true.float())  # Ensure y_true is of type float for the loss calculation
+    return loss.item()
