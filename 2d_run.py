@@ -14,7 +14,7 @@ from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_
      DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss,\
      WeightedDiceLoss, IoULoss, FocalLoss, DiceBCELoss, TverskyLoss, UNetWithRNN,\
          FocalLossWithDiversityPenalty
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import f1_score, average_precision_score
 
 def calculate_positive_weight(dataset):
     num_ones = np.sum(dataset == 1)
@@ -32,7 +32,7 @@ def calculate_weights(dataset):
 x_window_size = 10
 y_window_size = 5
 stride = 6
-batch_size = 64
+batch_size = 16
 num_epochs = 1000
 learning_rate = 0.001
 
@@ -117,7 +117,6 @@ test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 model = UNetWithRNN(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
-# # criterion = nn.BCELoss()
 # print("positive weights",positive_weights)
 # positive_weight = np.mean(positive_weights) 
 # print(f'positive_weight {positive_weight}')
@@ -139,7 +138,8 @@ print(model)
 # Define the weighted BCELoss
 # criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(positive_weight))
 # criterion = DiceLoss()
-# criterion = IoULoss()
+Bce_criterion = nn.BCELoss()
+Iou_criterion = IoULoss()
 criterion = FocalLoss()
 # criterion = FocalLossWithDiversityPenalty()
 # criterion = DiceBCELoss()
@@ -232,6 +232,10 @@ num_batches = 0
 visualization_folder = "visualizations/"+config.model_name
 if not os.path.exists(visualization_folder):
     os.makedirs(visualization_folder)
+f1_scores = []
+avg_precision_scores = []
+bce_scores = []
+iou_scores = []
 
 for batch_x, batch_y in test_dataloader:
     batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
@@ -239,7 +243,18 @@ for batch_x, batch_y in test_dataloader:
     output = model(batch_x.float())
     output_flat = output.view(-1)
     batch_y_flat = batch_y.view(-1)
-    loss = criterion(output_flat, batch_y_flat.float())
+    loss = criterion(output_flat, batch_y_flat.float()).item()
+    bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
+    iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
+
+    # Compute additional metrics
+    output_binary = (output_flat > 0.5).int()
+    f1 = f1_score(batch_y.cpu().numpy(), output_binary.cpu().numpy())
+    avg_precision = average_precision_score(batch_y.cpu().numpy(), output.cpu().detach().numpy())
+    f1_scores.append(f1)
+    avg_precision_scores.append(avg_precision)
+    bce_scores.append(bce)
+    iou_scores.append(iou)
     # loss.backward()
     # optimizer.step()
     
@@ -282,4 +297,8 @@ for batch_x, batch_y in test_dataloader:
 # Calculate average loss for the epoch
 average_test_loss = test_epoch_loss / num_batches
 
-print(f'Test Average Loss: {average_test_loss:.4f}')
+print(f'Test Average Loss: {average_test_loss:.4f} \
+    BCE loss: {sum(bce_scores) / len(bce_scores):.4f}\
+    IoU loss: {sum(iou_scores) / len(iou_scores):.4f}\
+    Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \
+    F1 score: {sum(f1_scores) / len(f1_scores):.4f}')
