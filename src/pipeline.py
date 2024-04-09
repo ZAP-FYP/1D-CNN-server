@@ -257,7 +257,7 @@ def train(
                 test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
                 test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
                 
-        mean_test_loss = test_loss / samples_count
+        mean_test_loss = test_loss / samples_count 
         test_miou /= len(test_loader)
         avg_precision /= len(test_loader)
         test_f1 /= len(test_loader)
