@@ -30,14 +30,14 @@ def check_arrays_identical(np_file):
 #     print("Not all arrays in the numpy file are identical.")
 
 
-def visualize_frames(np_file, num_frames=500):
+def visualize_frames(data, num_frames=50):
     # Load the numpy file
-    data = np.load(np_file, allow_pickle=True)
+    # data = np.load(np_file, allow_pickle=True)
     # Check if the loaded data is an array
     if isinstance(data, np.ndarray) and data.ndim == 3 :
         # Display num_frames frames
         for i in range(min(num_frames, len(data))):
-            if i%100==0:
+            if i%1==0:
                 frame = data[i]
                 # frame = data[i,0]
 

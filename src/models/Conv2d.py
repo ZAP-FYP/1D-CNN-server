@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.optim as optim
 import torch
+import numpy as np
 
 class Conv2d(nn.Module):
     def __init__(self):
@@ -467,15 +468,48 @@ ALPHA = 0.8
 GAMMA = 2
 SMOOTH = 1
 
+# class FocalLossWithVariencePenalty(nn.Module):
+#     def __init__(self, weight=None, size_average=True):
+#         super(FocalLossWithVariencePenalty, self).__init__()
+
+#     def forward(self, inputs, targets, alpha=ALPHA, gamma=GAMMA, smooth=1):
+#         # comment out if your model contains a sigmoid or equivalent activation layer
+#         # inputs = F.sigmoid(inputs)       
+
+#         # Flatten label and prediction tensors
+#         inputs_flat = inputs.view(-1)  # Shape: batch_size x (no of channels * height * width)
+#         targets_flat = targets.view(-1)
+
+#         # Calculate binary cross-entropy 
+#         BCE = F.binary_cross_entropy(inputs_flat, targets_flat, reduction='mean')
+#         BCE_EXP = torch.exp(-BCE)
+
+#         # Calculate focal loss
+#         focal_loss = alpha * (1 - BCE_EXP) ** gamma * BCE
+#         print(f'{inputs.size(0),inputs.size(1)}')
+
+#         print(f'{inputs.view( inputs.size(0),inputs.size(1),-1).shape}')
+#         # var = inputs.view(inputs.size(0),inputs.size(1),-1).var(2)
+#         # Penalize if the output has the same data for all channels
+#           # Calculate variance across channels
+#         # print(f'var.shape, focal_loss.shape{var.shape, focal_loss.shape}')
+#         channel_var_penalty = torch.var(inputs.view( inputs.size(0),inputs.size(1),-1), dim=2).mean()  # Calculate variance across channels
+#         print(f'channel_var_penalty {channel_var_penalty}')
+
+#         focal_loss += channel_var_penalty
+#         # focal_loss += torch.sqrt(var)
+
+#         return focal_loss
 class FocalLossWithVariencePenalty(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(FocalLossWithVariencePenalty, self).__init__()
 
-    def forward(self, inputs, targets, alpha=ALPHA, gamma=GAMMA, smooth=1):
+    def forward(self, inputs, targets, alpha=ALPHA, gamma=GAMMA, smooth=1, penalty_weight=10):
         # comment out if your model contains a sigmoid or equivalent activation layer
         # inputs = F.sigmoid(inputs)       
 
         # Flatten label and prediction tensors
+
         inputs_flat = inputs.view(-1)  # Shape: batch_size x (no of channels * height * width)
         targets_flat = targets.view(-1)
 
@@ -485,17 +519,32 @@ class FocalLossWithVariencePenalty(nn.Module):
 
         # Calculate focal loss
         focal_loss = alpha * (1 - BCE_EXP) ** gamma * BCE
-        print(f'{inputs.size(0),inputs.size(1)}')
+        # Get the dimensions of the tensor
+        batch_size, num_channels, height, width = inputs.size()
+        inputs = inputs.view(batch_size, num_channels, -1)
+        # Additional penalty for predicting the same values for all channels
+        # mean_prediction = inputs.mean(dim=-1)  # Compute mean prediction for each channel
+        # channel_penalty = torch.norm(mean_prediction.std(dim=-1), p=2)  # Calculate standard deviation across images
+        # # print(f'channel_penalty{channel_penalty}')
+        # # Apply penalty only if standard deviation is close to zero
+        # penalty = torch.where(channel_penalty < 0.1, penalty_weight * channel_penalty, torch.tensor(0.0).to(inputs.device))
+        
+        # # Total loss is a combination of focal loss and penalty
+        # total_loss = focal_loss + penalty
+        # print(f'total_loss.mean(){total_loss.mean(), total_loss}')
+        inputs = (inputs > 0.5).int()
 
-        print(f'{inputs.view( inputs.size(0),inputs.size(1),-1).shape}')
-        var = inputs.view( inputs.size(0),inputs.size(1),-1).var(2).sum(0) 
-        print(f'focal_loss,var {focal_loss,var}')
-        # Penalize if the output has the same data for all channels
-          # Calculate variance across channels
-        focal_loss += torch.sqrt(var)
+        similar=0
+        for batch_sample in range(inputs.size(0)):
+            for channel_idx in range(inputs.size(1)-1):
+                if torch.all(inputs[batch_sample,channel_idx,:].eq(inputs[batch_sample,channel_idx+1,:])):
+                    similar+=1
+        # print(similar)
+        # if all_same:
+        total_loss = focal_loss + similar/10
+        print(total_loss.mean())
 
-        return focal_loss
-
+        return total_loss.mean()
 
 class DiceBCELoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
