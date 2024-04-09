@@ -225,6 +225,7 @@ if config.train_flag:
         
 
 if config.test_flag:
+    print("Testing Started...")
     # Testing loop
     model = model.eval()
     test_epoch_loss=0
@@ -236,27 +237,32 @@ if config.test_flag:
     avg_precision_scores = []
     bce_scores = []
     iou_scores = []
-
+    channel_losses = {0:[],1:[],2:[],3:[],4:[]}
     for batch_x, batch_y in test_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
         optimizer.zero_grad()
         output = model(batch_x.float())
         output_flat = output.view(-1)
         batch_y_flat = batch_y.view(-1)
-        loss = criterion(output_flat, batch_y_flat.float()).item()
+        loss = criterion(output_flat, batch_y_flat.float())
         bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
         iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
 
         # Compute additional metrics
-        output_binary = (output_flat > 0.5).int()
-        f1 = f1_score(batch_y.cpu().numpy(), output_binary.cpu().numpy())
-        avg_precision = average_precision_score(batch_y.cpu().numpy(), output.cpu().detach().numpy())
+        output_binary = (output > 0.5).int()
+        # print(f'output_binary.shape, batch_y.shape {output_binary.shape, batch_y_flat.shape}')
+        f1 = f1_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().numpy(),zero_division=1)
+        avg_precision = average_precision_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().detach().numpy())
         f1_scores.append(f1)
         avg_precision_scores.append(avg_precision)
         bce_scores.append(bce)
         iou_scores.append(iou)
-        # loss.backward()
-        # optimizer.step()
+
+        for sample_idx in range(batch_y.size(0)):
+            for channel_idx in range(batch_y.size(1)):
+                channel_loss = criterion(output[sample_idx, channel_idx].view(-1).cpu().detach().numpy(), batch_y[sample_idx, channel_idx].view(-1).float().cpu().numpy())
+                channel_losses[channel_idx].append(channel_loss.item())
+
         
         test_epoch_loss += loss.item()  # Accumulate the loss for the batch
         num_batches += 1  # Increment the batch counter
@@ -302,3 +308,17 @@ if config.test_flag:
         IoU loss: {sum(iou_scores) / len(iou_scores):.4f}\
         Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \
         F1 score: {sum(f1_scores) / len(f1_scores):.4f}')
+
+    print(f'Channel 1 loss: {sum(channel_losses[0]) / len(channel_losses[0]):.4f}\
+            Channel 2 loss: {sum(channel_losses[1]) / len(channel_losses[1]):.4f}\
+            Channel 3 loss: {sum(channel_losses[2]) / len(channel_losses[2]):.4f}\
+            Channel 4 loss: {sum(channel_losses[3]) / len(channel_losses[3]):.4f}\
+            Channel 5 loss: {sum(channel_losses[4]) / len(channel_losses[4]):.4f}\
+                ')
+    
+    print(f'Channel 1 len: { len(channel_losses[0]):.4f}\
+        Channel 2 len: { len(channel_losses[1]):.4f}\
+        Channel 3 len: {len(channel_losses[2]):.4f}\
+        Channel 4 len: {len(channel_losses[3]):.4f}\
+        Channel 5 len: {len(channel_losses[4]):.4f}\
+            ')
