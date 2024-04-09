@@ -156,149 +156,149 @@ if os.path.isfile(checkpoint_file):
     current_epoch = checkpoint["epoch"]
 
 model.to(device)
+if config.train_flag:
+    # Training loop
+    model = model.train()
+    best_val_loss = float("inf")
+    consecutive_no_improvement = 0
 
-# Training loop
-model = model.train()
-best_val_loss = float("inf")
-consecutive_no_improvement = 0
+    for epoch in range(num_epochs):
+        train_epoch_loss = 0.0
+        val_epoch_loss = 0.0
+        model.train()  # Set the model to training mode
 
-for epoch in range(num_epochs):
-    train_epoch_loss = 0.0
-    val_epoch_loss = 0.0
-    model.train()  # Set the model to training mode
+        for batch_x, batch_y in train_dataloader:
+            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
 
-    for batch_x, batch_y in train_dataloader:
-        batch_x, batch_y = batch_x.to(device), batch_y.to(device)
-
-        optimizer.zero_grad()
-        output = model(batch_x.float())
-        output = output.view(-1)
-        batch_y = batch_y.view(-1)
-        loss = criterion(output, batch_y.float())
-        loss.backward()
-        optimizer.step()
-        train_epoch_loss += loss.item()
-        del batch_x
-        del batch_y
+            optimizer.zero_grad()
+            output = model(batch_x.float())
+            output = output.view(-1)
+            batch_y = batch_y.view(-1)
+            loss = criterion(output, batch_y.float())
+            loss.backward()
+            optimizer.step()
+            train_epoch_loss += loss.item()
+            del batch_x
+            del batch_y
 
 
-    average_train_loss = train_epoch_loss / len(train_dataloader)
+        average_train_loss = train_epoch_loss / len(train_dataloader)
 
-    # print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-    print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}")
+        # print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+        print(f"Epoch {epoch+1}: Train Loss: {average_train_loss:.4f}")
+        num_batches = 0
+        for batch_x, batch_y in validation_dataloader:
+            batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
+            optimizer.zero_grad()
+            output = model(batch_x.float())
+            output = output.view(-1)
+            batch_y = batch_y.view(-1)
+            loss = criterion(output, batch_y.float())
+            loss.backward()
+            optimizer.step()
+            
+            val_epoch_loss += loss.item()  # Accumulate the loss for the batch
+            num_batches += 1  # Increment the batch counter
+            del batch_x
+            del batch_y
+        
+        # Calculate average loss for the epoch
+        average_val_loss = val_epoch_loss / num_batches
+        if average_val_loss < best_val_loss:
+            best_val_loss = average_val_loss
+            consecutive_no_improvement = 0
+            save_checkpoint(
+                epoch,
+                model,
+                optimizer,
+                "model/" + config.model_name + "/best_model_checkpoint.pth",
+            )
+        else:
+            consecutive_no_improvement += 1
+
+        if consecutive_no_improvement >= config.patience:
+            print(f"best_val_loss {best_val_loss}")
+            print(f"Early stopping at epoch {epoch+1}")
+            break
+        print(f"best_val_loss {best_val_loss}")
+        print(f'Epoch [{epoch+1}/{num_epochs}], Train Average Loss: {average_train_loss:.4f}, Validation Average Loss: {average_val_loss:.4f}')
+        
+
+if config.test_flag:
+    # Testing loop
+    model = model.eval()
+    test_epoch_loss=0
     num_batches = 0
-    for batch_x, batch_y in validation_dataloader:
+    visualization_folder = "visualizations/"+config.model_name
+    if not os.path.exists(visualization_folder):
+        os.makedirs(visualization_folder)
+    f1_scores = []
+    avg_precision_scores = []
+    bce_scores = []
+    iou_scores = []
+
+    for batch_x, batch_y in test_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
         optimizer.zero_grad()
         output = model(batch_x.float())
-        output = output.view(-1)
-        batch_y = batch_y.view(-1)
-        loss = criterion(output, batch_y.float())
-        loss.backward()
-        optimizer.step()
+        output_flat = output.view(-1)
+        batch_y_flat = batch_y.view(-1)
+        loss = criterion(output_flat, batch_y_flat.float()).item()
+        bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
+        iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
+
+        # Compute additional metrics
+        output_binary = (output_flat > 0.5).int()
+        f1 = f1_score(batch_y.cpu().numpy(), output_binary.cpu().numpy())
+        avg_precision = average_precision_score(batch_y.cpu().numpy(), output.cpu().detach().numpy())
+        f1_scores.append(f1)
+        avg_precision_scores.append(avg_precision)
+        bce_scores.append(bce)
+        iou_scores.append(iou)
+        # loss.backward()
+        # optimizer.step()
         
-        val_epoch_loss += loss.item()  # Accumulate the loss for the batch
+        test_epoch_loss += loss.item()  # Accumulate the loss for the batch
         num_batches += 1  # Increment the batch counter
-        del batch_x
-        del batch_y
-    
-    # Calculate average loss for the epoch
-    average_val_loss = val_epoch_loss / num_batches
-    if average_val_loss < best_val_loss:
-        best_val_loss = average_val_loss
-        consecutive_no_improvement = 0
-        save_checkpoint(
-            epoch,
-            model,
-            optimizer,
-            "model/" + config.model_name + "/best_model_checkpoint.pth",
-        )
-    else:
-        consecutive_no_improvement += 1
-
-    if consecutive_no_improvement >= config.patience:
-        print(f"best_val_loss {best_val_loss}")
-        print(f"Early stopping at epoch {epoch+1}")
-        break
-    print(f"best_val_loss {best_val_loss}")
-    print(f'Epoch [{epoch+1}/{num_epochs}], Train Average Loss: {average_train_loss:.4f}, Validation Average Loss: {average_val_loss:.4f}')
-    
-
-
-# Testing loop
-model = model.eval()
-test_epoch_loss=0
-num_batches = 0
-visualization_folder = "visualizations/"+config.model_name
-if not os.path.exists(visualization_folder):
-    os.makedirs(visualization_folder)
-f1_scores = []
-avg_precision_scores = []
-bce_scores = []
-iou_scores = []
-
-for batch_x, batch_y in test_dataloader:
-    batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-    optimizer.zero_grad()
-    output = model(batch_x.float())
-    output_flat = output.view(-1)
-    batch_y_flat = batch_y.view(-1)
-    loss = criterion(output_flat, batch_y_flat.float()).item()
-    bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
-    iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
-
-    # Compute additional metrics
-    output_binary = (output_flat > 0.5).int()
-    f1 = f1_score(batch_y.cpu().numpy(), output_binary.cpu().numpy())
-    avg_precision = average_precision_score(batch_y.cpu().numpy(), output.cpu().detach().numpy())
-    f1_scores.append(f1)
-    avg_precision_scores.append(avg_precision)
-    bce_scores.append(bce)
-    iou_scores.append(iou)
-    # loss.backward()
-    # optimizer.step()
-    
-    test_epoch_loss += loss.item()  # Accumulate the loss for the batch
-    num_batches += 1  # Increment the batch counter
-    
-    batch_x_cpu = batch_x.cpu().detach().numpy()
-    batch_y_cpu = batch_y.cpu().detach().numpy()
-    output_cpu = output.cpu().detach().numpy()
-
-
-    # Plotting
-    for i in range(batch_x.shape[0]):  # Loop over each sample in the batch
-        fig, axes = plt.subplots(4, 5, figsize=(15, 12))  # 3 rows, 5 columns for each sample
-
-        # Plot images from batch_x for the current sample
-        for j in range(10):
-            axes[j // 5, j % 5].imshow(batch_x_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[j // 5, j % 5].set_title(f'X[{j}] batch {num_batches}')
-            axes[j // 5, j % 5].axis('off')
-
-        for j in range(5):
-            axes[2, j].imshow(batch_y_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[2, j].set_title(f'True Label[{j} batch {num_batches}]')
-            axes[2, j].axis('off')
         
-        # Plot images from batch_y for the current sample
-        for j in range(5):
-            axes[3, j].imshow(output_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
-            axes[3, j].set_title(f'Predicted Frame[{j} batch {num_batches}]')
-            axes[3, j].axis('off')
+        batch_x_cpu = batch_x.cpu().detach().numpy()
+        batch_y_cpu = batch_y.cpu().detach().numpy()
+        output_cpu = output_binary.cpu().detach().numpy()
 
-        plt.tight_layout()
-        plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
 
-        plt.savefig(os.path.join(visualization_folder, f"visualization_{i} batch {num_batches}.png"))  # Save the figure
-        plt.close()
-    # del batch_x
-    # del batch_y
-# Calculate average loss for the epoch
-average_test_loss = test_epoch_loss / num_batches
+        # Plotting
+        for i in range(batch_x.shape[0]):  # Loop over each sample in the batch
+            fig, axes = plt.subplots(4, 5, figsize=(15, 12))  # 3 rows, 5 columns for each sample
 
-print(f'Test Average Loss: {average_test_loss:.4f} \
-    BCE loss: {sum(bce_scores) / len(bce_scores):.4f}\
-    IoU loss: {sum(iou_scores) / len(iou_scores):.4f}\
-    Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \
-    F1 score: {sum(f1_scores) / len(f1_scores):.4f}')
+            # Plot images from batch_x for the current sample
+            for j in range(10):
+                axes[j // 5, j % 5].imshow(batch_x_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
+                axes[j // 5, j % 5].set_title(f'X[{j}] batch {num_batches}')
+                axes[j // 5, j % 5].axis('off')
+
+            for j in range(5):
+                axes[2, j].imshow(batch_y_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
+                axes[2, j].set_title(f'True Label[{j} batch {num_batches}]')
+                axes[2, j].axis('off')
+            
+            # Plot images from batch_y for the current sample
+            for j in range(5):
+                axes[3, j].imshow(output_cpu[i, j], cmap='gray')  # Assuming binary images (0 and 1)
+                axes[3, j].set_title(f'Predicted Frame[{j} batch {num_batches}]')
+                axes[3, j].axis('off')
+
+            plt.tight_layout()
+            plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
+
+            plt.savefig(os.path.join(visualization_folder, f"visualization_{i} batch {num_batches}.png"))  # Save the figure
+            plt.close()
+        # del batch_x
+        # del batch_y
+    # Calculate average loss for the epoch
+    average_test_loss = test_epoch_loss / num_batches
+
+    print(f'Test Average Loss: {average_test_loss:.4f} \
+        BCE loss: {sum(bce_scores) / len(bce_scores):.4f}\
+        IoU loss: {sum(iou_scores) / len(iou_scores):.4f}\
+        Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \
+        F1 score: {sum(f1_scores) / len(f1_scores):.4f}')
