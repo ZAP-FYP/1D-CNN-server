@@ -211,7 +211,7 @@ def train(
         avg_precision = 0.0
         test_f1 = 0.0
         test_bce = 0.0
-        baseline_loss = 0.0
+        samples_count = 0
         mse_threshold = 150000
         bad_samples = []
         good_samples = []
@@ -223,8 +223,6 @@ def train(
             for i, (images, labels, tta) in enumerate(test_loader):
                 images = images.to(device)
                 y_hat = model(images)
-
-                baseline_yhat = images[:, -5:, :].view(images.size(0), -1)
                 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
@@ -238,10 +236,10 @@ def train(
                     test_loss += batch_loss.item()
                 else:
                     batch_loss = criterion(y_hat, labels)
-                    print(batch_loss)
                     test_loss += batch_loss.item() 
-                    baseline_loss += criterion(baseline_yhat, labels)
                     
+                samples_count += labels.size(0)
+
                 test_labels.extend(labels.cpu().numpy())
                 test_preds.extend(y_hat.cpu().numpy())
 
@@ -259,8 +257,7 @@ def train(
                 test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
                 test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
                 
-        mean_test_loss = test_loss / len(test_loader)
-        baseline_loss /= len(test_loader)
+        mean_test_loss = test_loss / samples_count
         test_miou /= len(test_loader)
         avg_precision /= len(test_loader)
         test_f1 /= len(test_loader)
@@ -280,7 +277,6 @@ def train(
                 print(f"Mean BCE of test data: {mean_test_loss:.3f}")
         else:
             print(f"MSE of test data: {mean_test_loss:.3f}")
-            print(f"Baseline loss of test data: {baseline_loss:.3f}")
             print("BCE for test data:", test_bce)
             print("IOU for test data:", test_miou)
             print("AP for test data:", avg_precision)
