@@ -542,7 +542,7 @@ class FocalLossWithVariencePenalty(nn.Module):
         # print(similar)
         # if all_same:
         total_loss = focal_loss + similar/10
-        print(total_loss.mean())
+        # print(total_loss.mean())
 
         return total_loss.mean()
 

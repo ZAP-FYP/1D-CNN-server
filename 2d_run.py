@@ -240,7 +240,7 @@ if config.test_flag:
         output = model(batch_x.float())
         output_flat = output.view(-1)
         batch_y_flat = batch_y.view(-1)
-        loss = criterion(output_flat, batch_y_flat.float())
+        loss = criterion(output, batch_y.float())
         bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
         iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
 
@@ -253,13 +253,26 @@ if config.test_flag:
         avg_precision_scores.append(avg_precision)
         bce_scores.append(bce)
         iou_scores.append(iou)
+        #  This channel wise loss works for focal loss
+
+        # for sample_idx in range(batch_y.size(0)):
+        #     for channel_idx in range(batch_y.size(1)):
+        #         # print(f'output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx {output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx].shape}')
+        #         # pred, true_label = torch.unsqueeze(output[sample_idx, channel_idx],0), torch.unsqueeze(batch_y[sample_idx, channel_idx],0) 
+        #         pred, true_label = output[sample_idx, channel_idx], batch_y[sample_idx, channel_idx]
+        #         # print(f'pred, true_label {pred.shape, true_label.shape}')
+        #         channel_loss = criterion(pred, true_label.float())
+        #         channel_losses[channel_idx].append(channel_loss.item())
+    
+        #  This channel wise loss works for focal loss with penalty
 
         for sample_idx in range(batch_y.size(0)):
             for channel_idx in range(batch_y.size(1)):
                 # print(f'output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx {output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx].shape}')
                 # pred, true_label = torch.unsqueeze(output[sample_idx, channel_idx],0), torch.unsqueeze(batch_y[sample_idx, channel_idx],0) 
-                pred, true_label = output[sample_idx, channel_idx], batch_y[sample_idx, channel_idx]
-                # print(f'pred, true_label {pred.shape, true_label.shape}')
+
+                pred, true_label = output[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0), batch_y[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0)
+                print(f'pred, true_label {pred.shape, true_label.shape}')
                 channel_loss = criterion(pred, true_label.float())
                 channel_losses[channel_idx].append(channel_loss.item())
 
@@ -315,9 +328,3 @@ if config.test_flag:
             Channel 5 loss: {sum(channel_losses[4]) / len(channel_losses[4]):.4f}\
                 ')
     
-    print(f'Channel 1 len: { len(channel_losses[0]):.4f}\
-        Channel 2 len: { len(channel_losses[1]):.4f}\
-        Channel 3 len: {len(channel_losses[2]):.4f}\
-        Channel 4 len: {len(channel_losses[3]):.4f}\
-        Channel 5 len: {len(channel_losses[4]):.4f}\
-            ')
