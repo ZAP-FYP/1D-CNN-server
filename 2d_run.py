@@ -256,10 +256,13 @@ if config.test_flag:
 
         for sample_idx in range(batch_y.size(0)):
             for channel_idx in range(batch_y.size(1)):
-                channel_loss = criterion(output[sample_idx, channel_idx].view(-1).cpu().detach().numpy(), batch_y[sample_idx, channel_idx].view(-1).float().cpu().numpy())
+                # print(f'output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx {output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx].shape}')
+                # pred, true_label = torch.unsqueeze(output[sample_idx, channel_idx],0), torch.unsqueeze(batch_y[sample_idx, channel_idx],0) 
+                pred, true_label = output[sample_idx, channel_idx], batch_y[sample_idx, channel_idx]
+                # print(f'pred, true_label {pred.shape, true_label.shape}')
+                channel_loss = criterion(pred, true_label.float())
                 channel_losses[channel_idx].append(channel_loss.item())
 
-        
         test_epoch_loss += loss.item()  # Accumulate the loss for the batch
         num_batches += 1  # Increment the batch counter
         
