@@ -141,6 +141,7 @@ print(model)
 Bce_criterion = nn.BCELoss()
 Iou_criterion = IoULoss()
 criterion = FocalLossWithVariencePenalty()
+Focal_criterion = FocalLoss()
 # criterion = FocalLossWithDiversityPenalty()
 # criterion = DiceBCELoss()
 # criterion = TverskyLoss()
@@ -233,6 +234,7 @@ if config.test_flag:
     avg_precision_scores = []
     bce_scores = []
     iou_scores = []
+    focal_scores = []
     channel_losses = {0:[],1:[],2:[],3:[],4:[]}
     for batch_x, batch_y in test_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
@@ -243,7 +245,7 @@ if config.test_flag:
         loss = criterion(output, batch_y.float())
         bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
         iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
-
+        focal = Focal_criterion(output_flat, batch_y_flat.float()).item()
         # Compute additional metrics
         output_binary = (output > 0.5).int()
         # print(f'output_binary.shape, batch_y.shape {output_binary.shape, batch_y_flat.shape}')
@@ -253,6 +255,8 @@ if config.test_flag:
         avg_precision_scores.append(avg_precision)
         bce_scores.append(bce)
         iou_scores.append(iou)
+        focal_scores.append(focal)
+
         #  This channel wise loss works for focal loss
 
         # for sample_idx in range(batch_y.size(0)):
@@ -272,7 +276,7 @@ if config.test_flag:
                 # pred, true_label = torch.unsqueeze(output[sample_idx, channel_idx],0), torch.unsqueeze(batch_y[sample_idx, channel_idx],0) 
 
                 pred, true_label = output[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0), batch_y[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0)
-                print(f'pred, true_label {pred.shape, true_label.shape}')
+                # print(f'pred, true_label {pred.shape, true_label.shape}')
                 channel_loss = criterion(pred, true_label.float())
                 channel_losses[channel_idx].append(channel_loss.item())
 
@@ -316,6 +320,7 @@ if config.test_flag:
     average_test_loss = test_epoch_loss / num_batches
 
     print(f'Test Average Loss: {average_test_loss:.4f} \
+        Focal loss: {sum(focal_scores) / len(focal_scores):.4f}\
         BCE loss: {sum(bce_scores) / len(bce_scores):.4f}\
         IoU loss: {sum(iou_scores) / len(iou_scores):.4f}\
         Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \

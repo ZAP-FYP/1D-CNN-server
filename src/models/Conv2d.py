@@ -532,17 +532,19 @@ class FocalLossWithVariencePenalty(nn.Module):
         # # Total loss is a combination of focal loss and penalty
         # total_loss = focal_loss + penalty
         # print(f'total_loss.mean(){total_loss.mean(), total_loss}')
-        inputs = (inputs > 0.5).int()
+        # inputs = (inputs > 0.5).int()
 
         similar=0
         for batch_sample in range(inputs.size(0)):
             for channel_idx in range(inputs.size(1)-1):
-                if torch.all(inputs[batch_sample,channel_idx,:].eq(inputs[batch_sample,channel_idx+1,:])):
-                    similar+=1
-        # print(similar)
+                similar+=F.cosine_similarity(inputs[batch_sample,channel_idx,:],inputs[batch_sample,channel_idx+1,:], dim=-1).item()
+                # print(f"similar {similar}")
+                # if torch.allclose(inputs[batch_sample,channel_idx,:],inputs[batch_sample,channel_idx+1,:],atol=1):
+                #     similar+=1
+        # print("s",similar/(inputs.size(0)*inputs.size(1)))
         # if all_same:
-        total_loss = focal_loss + similar/10
-        # print(total_loss.mean())
+        total_loss = focal_loss + similar*2/(inputs.size(0)*inputs.size(1))
+        # print(f'total_loss.mean(){total_loss.mean()}')
 
         return total_loss.mean()
 
