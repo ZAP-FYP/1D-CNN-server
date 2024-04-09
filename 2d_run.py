@@ -13,7 +13,7 @@ from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual,\
      DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss,\
      WeightedDiceLoss, IoULoss, FocalLoss, DiceBCELoss, TverskyLoss, UNetWithRNN,\
-         FocalLossWithDiversityPenalty
+         FocalLossWithVariencePenalty
 from sklearn.metrics import f1_score, average_precision_score
 
 def calculate_positive_weight(dataset):
@@ -140,7 +140,7 @@ print(model)
 # criterion = DiceLoss()
 Bce_criterion = nn.BCELoss()
 Iou_criterion = IoULoss()
-criterion = FocalLoss()
+criterion = FocalLossWithVariencePenalty()
 # criterion = FocalLossWithDiversityPenalty()
 # criterion = DiceBCELoss()
 # criterion = TverskyLoss()
@@ -172,8 +172,6 @@ if config.train_flag:
 
             optimizer.zero_grad()
             output = model(batch_x.float())
-            output = output.view(-1)
-            batch_y = batch_y.view(-1)
             loss = criterion(output, batch_y.float())
             loss.backward()
             optimizer.step()
@@ -191,8 +189,6 @@ if config.train_flag:
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
             optimizer.zero_grad()
             output = model(batch_x.float())
-            output = output.view(-1)
-            batch_y = batch_y.view(-1)
             loss = criterion(output, batch_y.float())
             loss.backward()
             optimizer.step()
