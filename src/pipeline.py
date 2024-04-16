@@ -208,10 +208,10 @@ def train(
         model.eval()
         test_loss = 0
         baseline_loss = 0.0
-        test_miou = 0.0
-        avg_precision = 0.0
-        test_f1 = 0.0
-        test_bce = 0.0
+        test_miou, baseline_test_miou = 0.0, 0.0
+        avg_precision, baseline_avg_precision = 0.0, 0.0
+        test_f1, baseline_test_f1 = 0.0, 0.0
+        test_bce, baseline_test_bce = 0.0, 0.0
         samples_count = 0
         mse_threshold = 150000
         bad_samples = []
@@ -239,7 +239,7 @@ def train(
                 else:
                     batch_loss = criterion(y_hat, labels)
                     test_loss += batch_loss.item() 
-                    baseline_loss += criterion(baseline_yhat, labels)
+                    baseline_loss += criterion(baseline_yhat, labels).item()
                     
                 samples_count += labels.size(0)
 
@@ -259,13 +259,25 @@ def train(
                 avg_precision += (sum(precisions)/(labels.size(0)*future_f))
                 test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
                 test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
-                
+
+                baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses = get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100))
+                baseline_test_miou += (sum(baseline_ious)/(labels.size(0)*future_f))
+                baseline_avg_precision += (sum(baseline_precisions)/(labels.size(0)*future_f))
+                baseline_test_f1 += (sum(baseline_f1_scores)/(labels.size(0)*future_f))
+                baseline_test_bce += (sum(baseline_bce_losses)/(labels.size(0)*future_f))
+
         mean_test_loss = test_loss / len(test_loader)
         baseline_loss /= len(test_loader)
+
         test_miou /= len(test_loader)
         avg_precision /= len(test_loader)
         test_f1 /= len(test_loader)
         test_bce /= len(test_loader)
+
+        baseline_test_miou /= len(test_loader)
+        baseline_avg_precision /= len(test_loader)
+        baseline_test_f1 /= len(test_loader)
+        baseline_test_bce /= len(test_loader)
 
         if collision_flag:
             accuracy = accuracy_score(test_labels, test_preds)
@@ -281,12 +293,16 @@ def train(
                 print(f"Mean BCE of test data: {mean_test_loss:.3f}")
         else:
             print(f"MSE of test data: {mean_test_loss:.3f}")
-            print(f"Baseline loss of test data: {baseline_loss:.3f}")
             print("BCE for test data:", test_bce)
             print("IOU for test data:", test_miou)
             print("AP for test data:", avg_precision)
             print("F1 for test data:", test_f1)
 
+            print(f"Baseline MSE of test data: {baseline_loss:.3f}")
+            print("Baseline BCE for test data:", baseline_test_bce)
+            print("Baseline IOU for test data:", baseline_test_miou)
+            print("Baseline AP for test data:", baseline_avg_precision)
+            print("Baseline F1 for test data:", baseline_test_f1)
 
                 # Save visualizations
         if visualization_flag:
@@ -388,8 +404,8 @@ def get_metrics(labels, yhats):
     f1_scores = []
     bce_losses = []
 
-    labels_max_value = torch.max(torch.max(labels.view(-1, 100), dim=1)[0], dim=0)[0].item()
-    yhats_max_value = torch.max(torch.max(yhats.view(-1, 100), dim=1)[0], dim=0)[0].item()
+    labels_max_value = torch.max(torch.max(labels.reshape(-1, 100), dim=1)[0], dim=0)[0].item()
+    yhats_max_value = torch.max(torch.max(yhats.reshape(-1, 100), dim=1)[0], dim=0)[0].item()
     ultimate_max_value = max(labels_max_value, yhats_max_value)
     # print("Ultimate max value:", ultimate_max_value)
 
@@ -420,7 +436,7 @@ def get_segmentation_matrix(array, max_size):
     binary_matrix = torch.zeros((max_size, 100), dtype=torch.int)
 
     # Iterate through each row and column
-    for i in range(100):
+    for i in range(max_size):
         for j in range(100):
             # Check if row index is greater than the corresponding value in data array
             if i > array[j]:
