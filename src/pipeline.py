@@ -67,7 +67,6 @@ def train(
     # print(f"Model summary : {summary(model, (in_channels, in_seq_len))}")
     # torchinfo.summary(model, (in_channels, 10, 100), device="cpu")
     print(model)
-
     if train_flag:
         # Define early stopping parameters
         print("Starting training...")
@@ -75,6 +74,8 @@ def train(
         consecutive_no_improvement = 0
         model = model.train()
         for epoch in range(current_epoch, num_epochs):
+            batch_losses = []
+
             train_loss = 0.0
 
             for i, (images, labels, tta) in enumerate(train_loader):
@@ -94,7 +95,7 @@ def train(
                 else:
                     loss = criterion(y_hat, labels)
                 train_loss += loss.item()
-
+                batch_losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -203,6 +204,27 @@ def train(
                 break
             print(f"best_val_loss {best_val_loss}")
 
+    # Create subplots
+    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+
+    axs[0].hist(batch_losses, bins=20, color='skyblue', edgecolor='black')
+    axs[0].set_xlabel('Value')
+    axs[0].set_ylabel('Frequency')
+    axs[0].set_title('Distribution of Batch Losses')
+    axs[0].grid(True)
+
+    # Plot the distribution of the second list
+    axs[1].hist(batch_losses, bins=20, color='salmon', edgecolor='black')
+    axs[1].set_xlabel('Value')
+    axs[1].set_ylabel('Frequency')
+    axs[1].set_title('Distribution of Baseline IoU')
+    axs[1].grid(True)
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+
+    # Show the plots
+    plt.savefig("batch_losses_plot.png")
     if test_flag:
         print("Starting testing...")
         model.eval()

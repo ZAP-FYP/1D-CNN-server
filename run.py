@@ -20,7 +20,7 @@ learning_rate = 0.001
 bidirectional = False
 momentum = 0.9
 
-model = ConvLSTM1D_Attention2(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 
 if config.collision_flag:
     if config.pretrained_flag:
