@@ -9,7 +9,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import numpy as np
 from PIL import Image
 import torch.nn as nn
-
+from torchmetrics.classification import BinaryJaccardIndex
+from sklearn.metrics import f1_score, average_precision_score
 
 def train(
     dataset,
@@ -204,27 +205,7 @@ def train(
                 break
             print(f"best_val_loss {best_val_loss}")
 
-    # Create subplots
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-
-    axs[0].hist(batch_losses, bins=20, color='skyblue', edgecolor='black')
-    axs[0].set_xlabel('Value')
-    axs[0].set_ylabel('Frequency')
-    axs[0].set_title('Distribution of Batch Losses')
-    axs[0].grid(True)
-
-    # Plot the distribution of the second list
-    axs[1].hist(batch_losses, bins=20, color='salmon', edgecolor='black')
-    axs[1].set_xlabel('Value')
-    axs[1].set_ylabel('Frequency')
-    axs[1].set_title('Distribution of Baseline IoU')
-    axs[1].grid(True)
-
-    # Adjust layout to prevent overlap
-    plt.tight_layout()
-
-    # Show the plots
-    plt.savefig("batch_losses_plot.png")
+    
     if test_flag:
         print("Starting testing...")
         model.eval()
@@ -233,8 +214,17 @@ def train(
         test_miou, baseline_test_miou = 0.0, 0.0
         avg_precision, baseline_avg_precision = 0.0, 0.0
         test_f1, baseline_test_f1 = 0.0, 0.0
+
+        test_miou1, baseline_test_miou1 = 0.0, 0.0
+        avg_precision1, baseline_avg_precision1 = 0.0, 0.0
+        test_f11, baseline_test_f11 = 0.0, 0.0
+
         test_bce, baseline_test_bce = 0.0, 0.0
         samples_count = 0
+        Iou = BinaryJaccardIndex()
+        f1_scores = []
+        avg_precision_scores = []
+        iou_scores = []
         mse_threshold = 150000
         bad_samples = []
         good_samples = []
@@ -275,18 +265,27 @@ def train(
                     for y_pred, image, label in zip(y_hat, images, labels):
                         good_samples.append((image, label, y_pred))
                 
-                ious, precisions, f1_scores, bce_losses = get_metrics(labels.reshape(labels.size(0), future_f, 100), y_hat.reshape(y_hat.size(0), future_f, 100))
+                
+                ious, precisions, f1_scores, bce_losses, ious_1, precisions_1, f1_scores_1 = get_metrics(labels.reshape(labels.size(0), future_f, 100), y_hat.reshape(y_hat.size(0), future_f, 100),Iou)
                 # print("ious:", ious)
                 test_miou += (sum(ious)/(labels.size(0)*future_f))
                 avg_precision += (sum(precisions)/(labels.size(0)*future_f))
                 test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
                 test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
 
-                baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses = get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100))
+                test_miou1 += (sum(ious_1)/(labels.size(0)*future_f))
+                avg_precision1 += (sum(precisions_1)/(labels.size(0)*future_f))
+                test_f11 += (sum(f1_scores_1)/(labels.size(0)*future_f))
+
+                baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100),Iou)
                 baseline_test_miou += (sum(baseline_ious)/(labels.size(0)*future_f))
                 baseline_avg_precision += (sum(baseline_precisions)/(labels.size(0)*future_f))
                 baseline_test_f1 += (sum(baseline_f1_scores)/(labels.size(0)*future_f))
                 baseline_test_bce += (sum(baseline_bce_losses)/(labels.size(0)*future_f))
+
+                baseline_test_miou1 += (sum(baseline_ious_1)/(labels.size(0)*future_f))
+                baseline_avg_precision1 += (sum(baseline_precisions_1)/(labels.size(0)*future_f))
+                baseline_test_f11 += (sum(baseline_f1_scores_1)/(labels.size(0)*future_f))
 
         mean_test_loss = test_loss / len(test_loader)
         baseline_loss /= len(test_loader)
@@ -300,6 +299,15 @@ def train(
         baseline_avg_precision /= len(test_loader)
         baseline_test_f1 /= len(test_loader)
         baseline_test_bce /= len(test_loader)
+
+        test_miou1 /= len(test_loader)
+        avg_precision1 /= len(test_loader)
+        test_f11 /= len(test_loader)
+
+        baseline_test_miou1 /= len(test_loader)
+        baseline_avg_precision1 /= len(test_loader)
+        baseline_test_f11 /= len(test_loader)
+        
 
         if collision_flag:
             accuracy = accuracy_score(test_labels, test_preds)
@@ -319,12 +327,19 @@ def train(
             print("IOU for test data:", test_miou)
             print("AP for test data:", avg_precision)
             print("F1 for test data:", test_f1)
+            print("IOU1 for test data:", test_miou1)
+            print("AP1for test data:", avg_precision1)
+            print("F11 for test data:", test_f11)
+
 
             print(f"Baseline MSE of test data: {baseline_loss:.3f}")
             print("Baseline BCE for test data:", baseline_test_bce)
             print("Baseline IOU for test data:", baseline_test_miou)
             print("Baseline AP for test data:", baseline_avg_precision)
             print("Baseline F1 for test data:", baseline_test_f1)
+            print("Baseline IOU1 for test data:", baseline_test_miou1)
+            print("Baseline AP1 for test data:", baseline_avg_precision1)
+            print("Baseline F11 for test data:", baseline_test_f11)
 
                 # Save visualizations
         if visualization_flag:
@@ -419,12 +434,15 @@ def visualize(viz_images, viz_labels, viz_outputs, output_folder, n_th_frame, fu
             plt.close()  # Close the plot after saving
 
 
-def get_metrics(labels, yhats):
+def get_metrics(labels, yhats, Iou):
     # gives the segmentation matrices for a given array
     ious = []
     precisions = []
     f1_scores = []
     bce_losses = []
+    ious_1 = []
+    precisions_1 = []
+    f1_scores_1 = []
 
     labels_max_value = torch.max(torch.max(labels.reshape(-1, 100), dim=1)[0], dim=0)[0].item()
     yhats_max_value = torch.max(torch.max(yhats.reshape(-1, 100), dim=1)[0], dim=0)[0].item()
@@ -436,23 +454,34 @@ def get_metrics(labels, yhats):
         for j in range(labels[i].size(0)):
             label_seg_matrix = get_segmentation_matrix(labels[i][j], ultimate_max_value)
             yhat_seg_matrix = get_segmentation_matrix(yhats[i][j], ultimate_max_value)
+            
+
             iou = calculate_iou(label_seg_matrix, yhat_seg_matrix)
             precision = calculate_precision(label_seg_matrix, yhat_seg_matrix)
             recall = calculate_recall(label_seg_matrix, yhat_seg_matrix)
             f1 = calculate_f1_score(precision, recall)
+            
+            iou_1 = Iou(yhat_seg_matrix.cpu(), label_seg_matrix.cpu()).item()
+            f1_1 = f1_score(label_seg_matrix.cpu().numpy(), yhat_seg_matrix.cpu().numpy(),average='micro')
+            avg_precision_1 = average_precision_score(label_seg_matrix.cpu().numpy(), yhat_seg_matrix.cpu().numpy())
+        
 
             bce = calculate_bce(label_seg_matrix, yhat_seg_matrix)
             # print("bce", bce)
             
+            ious_1.append(iou_1)
+            precisions_1.append(avg_precision_1)
+            f1_scores_1.append(f1_1)
+
             ious.append(iou)
             precisions.append(precision)
             f1_scores.append(f1)
             bce_losses.append(bce)
     
-    return ious, precisions, f1_scores, bce_losses
+    return ious, precisions, f1_scores, bce_losses, ious_1, precisions_1, f1_scores_1
 
 
-def get_segmentation_matrix(array, max_size):
+def get_segmentation_matrix1(array, max_size):
     # Create an empty binary matrix
     max_size = round(max_size * 2)
     binary_matrix = torch.zeros((max_size, 100), dtype=torch.int)
@@ -478,12 +507,19 @@ def get_segmentation_matrix(array, max_size):
 
     return binary_matrix
 
+def get_segmentation_matrix(array, max_size):
+    max_size = max_size + 2 
+    row_indices = torch.arange(max_size, dtype=torch.int, device='cuda:0')
+    array = array.to('cuda:0')
+    binary_matrix = torch.where(row_indices.unsqueeze(1) <= array.unsqueeze(0), 1, 0)
+    return binary_matrix
 
 def calculate_iou(y_true, y_pred):
     intersection = torch.logical_and(y_pred, y_true).sum()
     union = torch.logical_or(y_pred, y_true).sum()
     iou = intersection.float() / union.float()
     return iou.item() 
+
 
 def calculate_precision(y_true, y_pred):
     TP = (y_true * y_pred).sum().item()
