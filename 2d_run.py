@@ -13,8 +13,9 @@ from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual,\
      DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss,\
      WeightedDiceLoss, IoULoss, FocalLoss, DiceBCELoss, TverskyLoss, UNetWithRNN,\
-         FocalLossWithVariencePenalty
+         FocalLossWithVariencePenalty, SpatioTemporalModel
 from sklearn.metrics import f1_score, average_precision_score
+from torchmetrics.classification import BinaryJaccardIndex
 
 def calculate_positive_weight(dataset):
     num_ones = np.sum(dataset == 1)
@@ -115,7 +116,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=Fals
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = UNetWithRNN(in_channels=x_window_size, out_channels=y_window_size)
+model = SpatioTemporalModel(in_channels=x_window_size, out_channels=y_window_size, height=168, width=256)
 print(model)
 # print("positive weights",positive_weights)
 # positive_weight = np.mean(positive_weights) 
@@ -140,7 +141,9 @@ print(model)
 # criterion = DiceLoss()
 Bce_criterion = nn.BCELoss()
 Iou_criterion = IoULoss()
-criterion = FocalLossWithVariencePenalty()
+Iou = BinaryJaccardIndex().to(device)
+# criterion = FocalLossWithVariencePenalty()
+criterion = FocalLoss()
 Focal_criterion = FocalLoss()
 # criterion = FocalLossWithDiversityPenalty()
 # criterion = DiceBCELoss()
@@ -233,30 +236,39 @@ if config.test_flag:
     f1_scores = []
     avg_precision_scores = []
     bce_scores = []
+    iou_loss_scores = []
     iou_scores = []
     focal_scores = []
     channel_losses = {0:[],1:[],2:[],3:[],4:[]}
     for batch_x, batch_y in test_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-        optimizer.zero_grad()
-        output = model(batch_x.float())
+        # optimizer.zero_grad()
+        # output = model(batch_x.float())
+        # Assuming your input tensor is named input_tensor
+  # Extract the 10th element along the second dimension
+        tenth_of_10 = batch_x[:, 9:10, :, :]
+
+        # Repeat the extracted tensor 5 times along the second dimension
+        output = tenth_of_10.repeat(1, 5, 1, 1)
         output_flat = output.view(-1)
         batch_y_flat = batch_y.view(-1)
-        loss = criterion(output, batch_y.float())
-        bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
-        iou = Iou_criterion(output_flat, batch_y_flat.float()).item()
-        focal = Focal_criterion(output_flat, batch_y_flat.float()).item()
+        # loss = criterion(output.float(), batch_y.float())
+        bce = Bce_criterion(output_flat.float(), batch_y_flat.float()).item()
+        iou_loss = Iou_criterion(output_flat, batch_y_flat.float()).item()
+        focal = Focal_criterion(output_flat.float(), batch_y_flat.float()).item()
+        iou = Iou(output_flat, batch_y_flat.float()).item()
+        print(f'iou {iou}')
         # Compute additional metrics
         output_binary = (output > 0.5).int()
         # print(f'output_binary.shape, batch_y.shape {output_binary.shape, batch_y_flat.shape}')
-        f1 = f1_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().numpy(),zero_division=1)
+        f1 = f1_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().numpy())
         avg_precision = average_precision_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().detach().numpy())
         f1_scores.append(f1)
         avg_precision_scores.append(avg_precision)
         bce_scores.append(bce)
-        iou_scores.append(iou)
+        iou_loss_scores.append(iou_loss)
         focal_scores.append(focal)
-
+        iou_scores.append(iou)
         #  This channel wise loss works for focal loss
 
         # for sample_idx in range(batch_y.size(0)):
@@ -270,17 +282,17 @@ if config.test_flag:
     
         #  This channel wise loss works for focal loss with penalty
 
-        for sample_idx in range(batch_y.size(0)):
-            for channel_idx in range(batch_y.size(1)):
-                # print(f'output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx {output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx].shape}')
-                # pred, true_label = torch.unsqueeze(output[sample_idx, channel_idx],0), torch.unsqueeze(batch_y[sample_idx, channel_idx],0) 
+        # for sample_idx in range(batch_y.size(0)):
+        #     for channel_idx in range(batch_y.size(1)):
+        #         # print(f'output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx {output[sample_idx, channel_idx].shape, batch_y[sample_idx, channel_idx].shape}')
+        #         # pred, true_label = torch.unsqueeze(output[sample_idx, channel_idx],0), torch.unsqueeze(batch_y[sample_idx, channel_idx],0) 
 
-                pred, true_label = output[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0), batch_y[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0)
-                # print(f'pred, true_label {pred.shape, true_label.shape}')
-                channel_loss = criterion(pred, true_label.float())
-                channel_losses[channel_idx].append(channel_loss.item())
+        #         pred, true_label = output[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0), batch_y[sample_idx, channel_idx].unsqueeze(0).unsqueeze(0)
+        #         # print(f'pred, true_label {pred.shape, true_label.shape}')
+        #         channel_loss = criterion(pred, true_label.float())
+        #         channel_losses[channel_idx].append(channel_loss.item())
 
-        test_epoch_loss += loss.item()  # Accumulate the loss for the batch
+        # test_epoch_loss += loss.item()  # Accumulate the loss for the batch
         num_batches += 1  # Increment the batch counter
         
         batch_x_cpu = batch_x.cpu().detach().numpy()
@@ -310,26 +322,28 @@ if config.test_flag:
                 axes[3, j].axis('off')
 
             plt.tight_layout()
-            plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
+            # plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
 
             plt.savefig(os.path.join(visualization_folder, f"visualization_{i} batch {num_batches}.png"))  # Save the figure
             plt.close()
         # del batch_x
         # del batch_y
     # Calculate average loss for the epoch
-    average_test_loss = test_epoch_loss / num_batches
-
+    # average_test_loss = test_epoch_loss / num_batches
+    average_test_loss = sum(focal_scores) / len(focal_scores)
+    print(f"iou{iou_scores} \n {sum(iou_scores), len(iou_scores)}")
     print(f'Test Average Loss: {average_test_loss:.4f} \
         Focal loss: {sum(focal_scores) / len(focal_scores):.4f}\
         BCE loss: {sum(bce_scores) / len(bce_scores):.4f}\
-        IoU loss: {sum(iou_scores) / len(iou_scores):.4f}\
+        IoU loss: {sum(iou_loss_scores) / len(iou_loss_scores):.4f}\
+        IoU: {sum(iou_scores) / len(iou_scores)}\
         Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \
         F1 score: {sum(f1_scores) / len(f1_scores):.4f}')
 
-    print(f'Channel 1 loss: {sum(channel_losses[0]) / len(channel_losses[0]):.4f}\
-            Channel 2 loss: {sum(channel_losses[1]) / len(channel_losses[1]):.4f}\
-            Channel 3 loss: {sum(channel_losses[2]) / len(channel_losses[2]):.4f}\
-            Channel 4 loss: {sum(channel_losses[3]) / len(channel_losses[3]):.4f}\
-            Channel 5 loss: {sum(channel_losses[4]) / len(channel_losses[4]):.4f}\
-                ')
+    # print(f'Channel 1 loss: {sum(channel_losses[0]) / len(channel_losses[0]):.4f}\
+    #         Channel 2 loss: {sum(channel_losses[1]) / len(channel_losses[1]):.4f}\
+    #         Channel 3 loss: {sum(channel_losses[2]) / len(channel_losses[2]):.4f}\
+    #         Channel 4 loss: {sum(channel_losses[3]) / len(channel_losses[3]):.4f}\
+    #         Channel 5 loss: {sum(channel_losses[4]) / len(channel_losses[4]):.4f}\
+    #             ')
     
