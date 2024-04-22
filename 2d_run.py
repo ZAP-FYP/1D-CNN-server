@@ -257,13 +257,15 @@ if config.test_flag:
         output = model(batch_x.float())
         # Assuming batch_y is a tensor of shape [batch_size, num_channels, height, width]
         new_width = 100
-        batch_y = F.interpolate(batch_y.float(), size=(batch_y.size(2), new_width), mode='nearest')               
-        output = F.interpolate(output.float(), size=(batch_y.size(2), new_width), mode='nearest')        
-        
+        new_height = 480
+
+        batch_y = F.interpolate(batch_y.float(), size=(new_height, new_width), mode='nearest')
+        output = F.interpolate(output.float(), size=(new_height, new_width), mode='nearest')
         optimizer.zero_grad()
         
         output_flat = output.view(-1)
         batch_y_flat = batch_y.view(-1)
+
         loss = criterion(output, batch_y.float())
         bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
         iou_loss = Iou_criterion(output_flat, batch_y_flat.float()).item()
