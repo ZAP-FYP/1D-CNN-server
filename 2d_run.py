@@ -13,9 +13,10 @@ from src.dataset import Conv2d_dataset
 from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_Residual,\
      DeepConv2d_Residual, Conv2d_SpatialPyramidPooling,Conv2dLSTM, UNet, DiceLoss,\
      WeightedDiceLoss, IoULoss, FocalLoss, DiceBCELoss, TverskyLoss, UNetWithRNN,\
-         FocalLossWithVariencePenalty, SpatioTemporalModel
+         FocalLossWithVariencePenalty
 from sklearn.metrics import f1_score, average_precision_score
 from torchmetrics.classification import BinaryJaccardIndex
+import torch.nn.functional as F
 
 def calculate_positive_weight(dataset):
     num_ones = np.sum(dataset == 1)
@@ -57,6 +58,8 @@ if device != "cpu":
 
 # List all numpy files in the directory
 numpy_files = [f for f in os.listdir(config.dataset_path) if f.endswith('.npy')]
+# numpy_files = ['/home/arvinths_19/YOLOPv2-1D_Coordinates/train_data/2d_maps/0000f77c-62c2a288.npy']
+
 train_data = []
 validation_data = []
 test_data = []
@@ -72,6 +75,14 @@ for file_name in numpy_files:
     # num_zeros , num_ones = calculate_weights(data)
     # if positive_weight==float('inf'):
     #     print(f"inf found in {file_name}")
+    #     continue
+    # break_flag = False
+    # for frame in data:
+    #     if np.all(frame == 0):
+    #         print(file_name, "has empty frames")
+    #         break_flag = True
+    #         break
+    # if break_flag:
     #     continue
     # positive_weights.append(positive_weight)
     # zero_freq.append(num_zeros)
@@ -116,7 +127,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=Fals
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = SpatioTemporalModel(in_channels=x_window_size, out_channels=y_window_size, height=168, width=256)
+model = UNetWithRNN(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
 # print("positive weights",positive_weights)
 # positive_weight = np.mean(positive_weights) 
@@ -142,7 +153,7 @@ print(model)
 Bce_criterion = nn.BCELoss()
 Iou_criterion = IoULoss()
 Iou = BinaryJaccardIndex().to(device)
-# criterion = FocalLossWithVariencePenalty()
+
 criterion = FocalLoss()
 Focal_criterion = FocalLoss()
 # criterion = FocalLossWithDiversityPenalty()
@@ -237,31 +248,32 @@ if config.test_flag:
     avg_precision_scores = []
     bce_scores = []
     iou_loss_scores = []
-    iou_scores = []
+    iou_scores = [] 
     focal_scores = []
     channel_losses = {0:[],1:[],2:[],3:[],4:[]}
     for batch_x, batch_y in test_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-        # optimizer.zero_grad()
-        # output = model(batch_x.float())
-        # Assuming your input tensor is named input_tensor
-  # Extract the 10th element along the second dimension
-        tenth_of_10 = batch_x[:, 9:10, :, :]
-
-        # Repeat the extracted tensor 5 times along the second dimension
-        output = tenth_of_10.repeat(1, 5, 1, 1)
+        
+        output = model(batch_x.float())
+        # Assuming batch_y is a tensor of shape [batch_size, num_channels, height, width]
+        new_width = 100
+        batch_y = F.interpolate(batch_y.float(), size=(batch_y.size(2), new_width), mode='nearest')               
+        output = F.interpolate(output.float(), size=(batch_y.size(2), new_width), mode='nearest')        
+        
+        optimizer.zero_grad()
+        
         output_flat = output.view(-1)
         batch_y_flat = batch_y.view(-1)
-        # loss = criterion(output.float(), batch_y.float())
-        bce = Bce_criterion(output_flat.float(), batch_y_flat.float()).item()
+        loss = criterion(output, batch_y.float())
+        bce = Bce_criterion(output_flat, batch_y_flat.float()).item()
         iou_loss = Iou_criterion(output_flat, batch_y_flat.float()).item()
-        focal = Focal_criterion(output_flat.float(), batch_y_flat.float()).item()
         iou = Iou(output_flat, batch_y_flat.float()).item()
-        print(f'iou {iou}')
+
+        focal = Focal_criterion(output_flat, batch_y_flat.float()).item()
         # Compute additional metrics
         output_binary = (output > 0.5).int()
         # print(f'output_binary.shape, batch_y.shape {output_binary.shape, batch_y_flat.shape}')
-        f1 = f1_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().numpy())
+        f1 = f1_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().numpy(),zero_division=1)
         avg_precision = average_precision_score(batch_y_flat.cpu().numpy(), output_binary.view(-1).cpu().detach().numpy())
         f1_scores.append(f1)
         avg_precision_scores.append(avg_precision)
@@ -269,6 +281,7 @@ if config.test_flag:
         iou_loss_scores.append(iou_loss)
         focal_scores.append(focal)
         iou_scores.append(iou)
+
         #  This channel wise loss works for focal loss
 
         # for sample_idx in range(batch_y.size(0)):
@@ -292,7 +305,7 @@ if config.test_flag:
         #         channel_loss = criterion(pred, true_label.float())
         #         channel_losses[channel_idx].append(channel_loss.item())
 
-        # test_epoch_loss += loss.item()  # Accumulate the loss for the batch
+        test_epoch_loss += loss.item()  # Accumulate the loss for the batch
         num_batches += 1  # Increment the batch counter
         
         batch_x_cpu = batch_x.cpu().detach().numpy()
@@ -322,16 +335,17 @@ if config.test_flag:
                 axes[3, j].axis('off')
 
             plt.tight_layout()
-            # plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
+            plt.suptitle(f"Loss: {loss.item():.4f}", fontsize=16)
 
             plt.savefig(os.path.join(visualization_folder, f"visualization_{i} batch {num_batches}.png"))  # Save the figure
             plt.close()
         # del batch_x
         # del batch_y
     # Calculate average loss for the epoch
-    # average_test_loss = test_epoch_loss / num_batches
-    average_test_loss = sum(focal_scores) / len(focal_scores)
-    print(f"iou{iou_scores} \n {sum(iou_scores), len(iou_scores)}")
+    average_test_loss = test_epoch_loss / num_batches
+    print(f"iou {iou_scores}")
+    while 'nan' in iou_scores:
+        iou_scores.remove('nan')
     print(f'Test Average Loss: {average_test_loss:.4f} \
         Focal loss: {sum(focal_scores) / len(focal_scores):.4f}\
         BCE loss: {sum(bce_scores) / len(bce_scores):.4f}\
