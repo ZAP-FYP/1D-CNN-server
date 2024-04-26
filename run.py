@@ -33,7 +33,6 @@ if config.collision_flag:
             sys.exit(1)
     else:
         print("Collision model from scratch starting...")
-        model = ConvLSTM1D_Attention2(input_size, hidden_size, kernel_size, num_layers, bidirectional)        
 
     if config.custom_loss:
         criterion = CustomLoss(frame_rate=config.frame_rate/config.frame_avg_rate)
