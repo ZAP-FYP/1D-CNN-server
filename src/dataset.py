@@ -621,6 +621,9 @@ class CollisionDataset:
             self.test_dataset = DrivableDataset(
                 X[idx :: self.DRR], y[idx :: self.DRR], tta[idx :: self.DRR]
             )
+            self.demo_dataset = DrivableDataset(
+                X[:: self.DRR], y[:: self.DRR], tta[:: self.DRR]
+            )
 
         print(f'Train samples {len(self.train_dataset)}')
         print(f'Validation samples {len(self.validation_dataset)}')

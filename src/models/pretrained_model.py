@@ -25,14 +25,19 @@ class CollisionClassifier(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.pretrained_model(x)
-        x = self.fc(x)
-        x = self.sigmoid(x)
-        return x
+        # Output of pre-trained model
+        pretrained_output = self.pretrained_model(x)
+        
+        # Output of the final classification layer
+        x = self.fc(pretrained_output)
+        final_output = self.sigmoid(x)
+        
+        return final_output, pretrained_output
 
 
 
 def get_classification_model(pretrained_model, checkpoint_file):
+    print(checkpoint_file)
     checkpoint = torch.load(checkpoint_file)
     # pretrained_model = checkpoint['model_state_dict']
     pretrained_model.load_state_dict(checkpoint["model_state_dict"])  

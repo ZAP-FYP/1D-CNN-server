@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 import torch.nn as nn
 from torchmetrics.classification import BinaryJaccardIndex
-from sklearn.metrics import f1_score, average_precision_score
+from sklearn.metrics import f1_score, average_precision_score, recall_score, precision_score
 
 def train(
     dataset,
@@ -82,21 +82,27 @@ def train(
             for i, (images, labels, tta) in enumerate(train_loader):
                 images = images.to(device)
 
-                y_hat = model(images)
+                # y_hat = model(images)
 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
-                    y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                    pred_frames, pred_collision = model(images)
+                    pred_collision = torch.where(pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
-                                
-                if custom_loss:
-                    tta = tta.to(device)
-                    loss = criterion(y_hat, labels, tta)
-                else:
-                    loss = criterion(y_hat, labels)
+                    pred_frames = model(images)
 
-                train_loss += loss.item()
+                                
+                if collision_flag:
+                    if custom_loss:
+                        tta = tta.to(device)
+                        loss = criterion(pred_collision, labels, tta)
+                    else:
+                        loss = criterion(pred_collision, labels)
+                else:
+                    loss = criterion(pred_frames, labels)
+
+                train_loss += loss.item()                    
                 batch_losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
@@ -125,26 +131,29 @@ def train(
                 for i, (val_images, val_labels, val_tta) in enumerate(validation_loader):
                     val_images = val_images.to(device)
 
-                    val_outputs = model(val_images)
-
                     if collision_flag:
-                        val_labels = val_labels.unsqueeze(1).to(device)
-                        val_outputs = torch.where(val_outputs>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                        val_pred_frames, val_pred_collision = model(images)
+                        val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                        val_labels = val_labels.unsqueeze(1).to(device)                    
                     else:
                         val_labels = val_labels.to(device)
+                        val_pred_frames = model(images)
 
                     # print(f'Val - y_hat.shape {val_outputs.shape} labels.shape {val_labels.shape}')
-                    if custom_loss:
-                        val_tta = val_tta.to(device)
-                        loss = criterion(val_outputs, val_labels, val_tta)
+                    if collision_flag:
+                        if custom_loss:
+                            val_tta = val_tta.to(device)
+                            loss = criterion(val_pred_collision, val_labels, val_tta)
+                        else:
+                            loss = criterion(val_pred_collision, val_labels)
                     else:
-                        loss = criterion(val_outputs, val_labels)
+                        loss = criterion(val_pred_frames, val_labels)
 
                     val_loss += loss.item()
 
                     # _, predicted = torch.max(val_outputs, 1)
                     true_labels.extend(val_labels.cpu().numpy())
-                    predictions.extend(val_outputs.cpu().numpy())
+                    predictions.extend(val_pred_frames.cpu().numpy())
 
                     # print("original loss:",loss)
 
@@ -236,38 +245,45 @@ def train(
         with torch.no_grad():
             for i, (images, labels, tta) in enumerate(test_loader):
                 images = images.to(device)
-                y_hat = model(images)
                 baseline_yhat = images[:, -5:, :].view(images.size(0), -1)
                 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
-                    y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                    test_pred_frames, test_pred_collision = model(images)
+                    test_pred_collision = torch.where(test_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
-                
-                if custom_loss:
-                    tta = tta.to(device)
-                    batch_loss = criterion(y_hat, labels, tta)
-                    test_loss += batch_loss.item()
+                    test_pred_frames = model(images)
+
+                if collision_flag:
+                    if custom_loss:
+                        tta = tta.to(device)
+                        batch_loss = criterion(test_pred_collision, labels, tta)
+                        test_loss += batch_loss.item()
+                    else:
+                        batch_loss = criterion(test_pred_collision, labels)
+                        test_loss += batch_loss.item()
                 else:
-                    batch_loss = criterion(y_hat, labels)
+                    batch_loss = criterion(test_pred_frames, labels)
                     test_loss += batch_loss.item() 
                     baseline_loss += criterion(baseline_yhat, labels).item()
+
                     
                 samples_count += labels.size(0)
 
                 test_labels.extend(labels.cpu().numpy())
-                test_preds.extend(y_hat.cpu().numpy())
+                test_preds.extend(test_pred_frames.cpu().numpy())
 
                 if batch_loss.item() > mse_threshold:
-                    for y_pred, image, label in zip(y_hat, images, labels):
+                    for y_pred, image, label in zip(test_pred_frames, images, labels):
                         bad_samples.append((image, label, y_pred))
                 else:
-                    for y_pred, image, label in zip(y_hat, images, labels):
+                    for y_pred, image, label in zip(test_pred_frames, images, labels):
                         good_samples.append((image, label, y_pred))
                 
-                if not(collision_flag):               
-                    ious, precisions, f1_scores, bce_losses, ious_1, precisions_1, f1_scores_1 = get_metrics(labels.reshape(labels.size(0), future_f, 100), y_hat.reshape(y_hat.size(0), future_f, 100),Iou)
+                if not collision_flag:
+                    
+                    ious, precisions, f1_scores, bce_losses, ious_1, precisions_1, f1_scores_1 = get_metrics(labels.reshape(labels.size(0), future_f, 100), test_pred_frames.reshape(test_pred_frames.size(0), future_f, 100),Iou)
                     # print("ious:", ious)
                     test_miou += (sum(ious)/(labels.size(0)*future_f))
                     avg_precision += (sum(precisions)/(labels.size(0)*future_f))
