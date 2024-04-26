@@ -285,6 +285,19 @@ class VideoFrameDataset:
         filenames = [
             f for f in os.listdir(self.directory_path) if not f.startswith(".DS_Store")
         ]
+        
+        # for folder in folders:
+        #     data_npy = []
+
+        #     foldername = os.path.abspath(os.path.join(self.directory_path, folder, 'images'))
+        #     filenames = [
+        #         os.path.join(foldername, f) for f in os.listdir(foldername) if not f.startswith(".DS_Store")
+        #     ]               
+        #     for file in filenames:
+        #         file_npy = np.load(file)
+        #         data_npy.append(file_npy)
+        #     data_npy = np.array(data_npy)
+        #     # print("video", np.array(data_npy).shape)
 
         for _file in filenames:
             file = os.path.join(self.directory_path, _file)
@@ -324,7 +337,7 @@ class VideoFrameDataset:
             idx = int(count * self.split_ratio)
             
         val_idx = int(idx * self.split_ratio)
-        
+
         if self.DRR == 0:
             self.train_dataset = DrivableDataset(X[:val_idx:], flatten_y[:val_idx:])
             self.validation_dataset = DrivableDataset(

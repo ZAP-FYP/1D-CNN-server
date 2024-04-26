@@ -95,6 +95,7 @@ def train(
                     loss = criterion(y_hat, labels, tta)
                 else:
                     loss = criterion(y_hat, labels)
+
                 train_loss += loss.item()
                 batch_losses.append(loss.item())
                 optimizer.zero_grad()
@@ -215,9 +216,9 @@ def train(
         avg_precision, baseline_avg_precision = 0.0, 0.0
         test_f1, baseline_test_f1 = 0.0, 0.0
 
-        test_miou1, baseline_test_miou1 = 0.0, 0.0
-        avg_precision1, baseline_avg_precision1 = 0.0, 0.0
-        test_f11, baseline_test_f11 = 0.0, 0.0
+        # test_miou1, baseline_test_miou1 = 0.0, 0.0
+        # avg_precision1, baseline_avg_precision1 = 0.0, 0.0
+        # test_f11, baseline_test_f11 = 0.0, 0.0
 
         test_bce, baseline_test_bce = 0.0, 0.0
         samples_count = 0
@@ -265,48 +266,50 @@ def train(
                     for y_pred, image, label in zip(y_hat, images, labels):
                         good_samples.append((image, label, y_pred))
                 
-                
-                ious, precisions, f1_scores, bce_losses, ious_1, precisions_1, f1_scores_1 = get_metrics(labels.reshape(labels.size(0), future_f, 100), y_hat.reshape(y_hat.size(0), future_f, 100),Iou)
-                # print("ious:", ious)
-                test_miou += (sum(ious)/(labels.size(0)*future_f))
-                avg_precision += (sum(precisions)/(labels.size(0)*future_f))
-                test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
-                test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
+                if not(collision_flag):               
+                    ious, precisions, f1_scores, bce_losses, ious_1, precisions_1, f1_scores_1 = get_metrics(labels.reshape(labels.size(0), future_f, 100), y_hat.reshape(y_hat.size(0), future_f, 100),Iou)
+                    # print("ious:", ious)
+                    test_miou += (sum(ious)/(labels.size(0)*future_f))
+                    avg_precision += (sum(precisions)/(labels.size(0)*future_f))
+                    test_f1 += (sum(f1_scores)/(labels.size(0)*future_f))
+                    test_bce += (sum(bce_losses)/(labels.size(0)*future_f))
 
-                test_miou1 += (sum(ious_1)/(labels.size(0)*future_f))
-                avg_precision1 += (sum(precisions_1)/(labels.size(0)*future_f))
-                test_f11 += (sum(f1_scores_1)/(labels.size(0)*future_f))
+                    # test_miou1 += (sum(ious_1)/(labels.size(0)*future_f))
+                    # avg_precision1 += (sum(precisions_1)/(labels.size(0)*future_f))
+                    # test_f11 += (sum(f1_scores_1)/(labels.size(0)*future_f))
 
-                baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100),Iou)
-                baseline_test_miou += (sum(baseline_ious)/(labels.size(0)*future_f))
-                baseline_avg_precision += (sum(baseline_precisions)/(labels.size(0)*future_f))
-                baseline_test_f1 += (sum(baseline_f1_scores)/(labels.size(0)*future_f))
-                baseline_test_bce += (sum(baseline_bce_losses)/(labels.size(0)*future_f))
+                    baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100),Iou)
+                    baseline_test_miou += (sum(baseline_ious)/(labels.size(0)*future_f))
+                    baseline_avg_precision += (sum(baseline_precisions)/(labels.size(0)*future_f))
+                    baseline_test_f1 += (sum(baseline_f1_scores)/(labels.size(0)*future_f))
+                    baseline_test_bce += (sum(baseline_bce_losses)/(labels.size(0)*future_f))
 
-                baseline_test_miou1 += (sum(baseline_ious_1)/(labels.size(0)*future_f))
-                baseline_avg_precision1 += (sum(baseline_precisions_1)/(labels.size(0)*future_f))
-                baseline_test_f11 += (sum(baseline_f1_scores_1)/(labels.size(0)*future_f))
+                    # baseline_test_miou1 += (sum(baseline_ious_1)/(labels.size(0)*future_f))
+                    # baseline_avg_precision1 += (sum(baseline_precisions_1)/(labels.size(0)*future_f))
+                    # baseline_test_f11 += (sum(baseline_f1_scores_1)/(labels.size(0)*future_f))
 
         mean_test_loss = test_loss / len(test_loader)
-        baseline_loss /= len(test_loader)
 
-        test_miou /= len(test_loader)
-        avg_precision /= len(test_loader)
-        test_f1 /= len(test_loader)
-        test_bce /= len(test_loader)
+        if not(collision_flag):
+            baseline_loss /= len(test_loader)
 
-        baseline_test_miou /= len(test_loader)
-        baseline_avg_precision /= len(test_loader)
-        baseline_test_f1 /= len(test_loader)
-        baseline_test_bce /= len(test_loader)
+            test_miou /= len(test_loader)
+            avg_precision /= len(test_loader)
+            test_f1 /= len(test_loader)
+            test_bce /= len(test_loader)
 
-        test_miou1 /= len(test_loader)
-        avg_precision1 /= len(test_loader)
-        test_f11 /= len(test_loader)
+            baseline_test_miou /= len(test_loader)
+            baseline_avg_precision /= len(test_loader)
+            baseline_test_f1 /= len(test_loader)
+            baseline_test_bce /= len(test_loader)
 
-        baseline_test_miou1 /= len(test_loader)
-        baseline_avg_precision1 /= len(test_loader)
-        baseline_test_f11 /= len(test_loader)
+            # test_miou1 /= len(test_loader)
+            # avg_precision1 /= len(test_loader)
+            # test_f11 /= len(test_loader)
+
+            # baseline_test_miou1 /= len(test_loader)
+            # baseline_avg_precision1 /= len(test_loader)
+            # baseline_test_f11 /= len(test_loader)
         
 
         if collision_flag:
@@ -327,9 +330,9 @@ def train(
             print("IOU for test data:", test_miou)
             print("AP for test data:", avg_precision)
             print("F1 for test data:", test_f1)
-            print("IOU1 for test data:", test_miou1)
-            print("AP1for test data:", avg_precision1)
-            print("F11 for test data:", test_f11)
+            # print("IOU1 for test data:", test_miou1)
+            # print("AP1for test data:", avg_precision1)
+            # print("F11 for test data:", test_f11)
 
 
             print(f"Baseline MSE of test data: {baseline_loss:.3f}")
@@ -337,9 +340,9 @@ def train(
             print("Baseline IOU for test data:", baseline_test_miou)
             print("Baseline AP for test data:", baseline_avg_precision)
             print("Baseline F1 for test data:", baseline_test_f1)
-            print("Baseline IOU1 for test data:", baseline_test_miou1)
-            print("Baseline AP1 for test data:", baseline_avg_precision1)
-            print("Baseline F11 for test data:", baseline_test_f11)
+            # print("Baseline IOU1 for test data:", baseline_test_miou1)
+            # print("Baseline AP1 for test data:", baseline_avg_precision1)
+            # print("Baseline F11 for test data:", baseline_test_f11)
 
                 # Save visualizations
         if visualization_flag:
