@@ -291,6 +291,11 @@ class VideoFrameDataset:
             data_npy = np.load(file)
             total_data.extend(data_npy)
 
+            # print("before", data_npy.shape)
+            # non_zero_indices = np.any(data_npy != 0, axis=1)  # Find rows with at least one non-zero element
+            # data_npy = data_npy[non_zero_indices] 
+            # print("after", data_npy.shape)
+
             if self.frame_avg_rate > 0:
                 averaged_frames = self.create_averaged_frames(data_npy, self.frame_avg_rate)
                 X_file, y_file = self.get_X_y(averaged_frames, self.prev_frames, self.future_frames,self.threshold)
@@ -317,9 +322,9 @@ class VideoFrameDataset:
             idx = int(count)
         else:
             idx = int(count * self.split_ratio)
-
+            
         val_idx = int(idx * self.split_ratio)
-
+        
         if self.DRR == 0:
             self.train_dataset = DrivableDataset(X[:val_idx:], flatten_y[:val_idx:])
             self.validation_dataset = DrivableDataset(
