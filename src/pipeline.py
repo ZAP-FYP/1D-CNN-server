@@ -86,7 +86,7 @@ def train(
 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
-                    pred_frames, pred_collision = model(images)
+                    pred_collision, pred_frames = model(images)
                     pred_collision = torch.where(pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
@@ -132,7 +132,7 @@ def train(
                     val_images = val_images.to(device)
 
                     if collision_flag:
-                        val_pred_frames, val_pred_collision = model(val_images)
+                        val_pred_collision, val_pred_frames = model(val_images)
                         val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                         val_labels = val_labels.unsqueeze(1).to(device)                    
                     else:
@@ -153,7 +153,7 @@ def train(
 
                     # _, predicted = torch.max(val_outputs, 1)
                     true_labels.extend(val_labels.cpu().numpy())
-                    predictions.extend(val_pred_frames.cpu().numpy())
+                    predictions.extend(val_pred_collision.cpu().numpy())
 
                     # print("original loss:",loss)
 
