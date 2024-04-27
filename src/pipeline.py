@@ -87,7 +87,7 @@ def train(
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
                     pred_collision, pred_frames = model(images)
-                    pred_collision = torch.where(pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                    # pred_collision = torch.where(pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
                     pred_frames = model(images)
@@ -133,7 +133,7 @@ def train(
 
                     if collision_flag:
                         val_pred_collision, val_pred_frames = model(val_images)
-                        val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                        # val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                         val_labels = val_labels.unsqueeze(1).to(device)                    
                     else:
                         val_labels = val_labels.to(device)
@@ -153,6 +153,7 @@ def train(
 
                     # _, predicted = torch.max(val_outputs, 1)
                     true_labels.extend(val_labels.cpu().numpy())
+                    val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                     predictions.extend(val_pred_collision.cpu().numpy())
 
                     # print("original loss:",loss)
@@ -186,7 +187,7 @@ def train(
 
 
                 val_loss /= len(validation_loader)
-                print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
+                print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {train_loss:.10f}, Validation Loss: {val_loss:.10f}")
 
                 if collision_flag:
                     accuracy = accuracy_score(true_labels, predictions)
