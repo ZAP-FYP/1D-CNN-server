@@ -249,7 +249,7 @@ def train(
                 
                 if collision_flag:
                     labels = labels.unsqueeze(1).to(device)
-                    test_pred_frames, test_pred_collision = model(images)
+                    test_pred_collision, test_pred_frames = model(images)
                     test_pred_collision = torch.where(test_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                 else:
                     labels = labels.to(device)
@@ -272,7 +272,7 @@ def train(
                 samples_count += labels.size(0)
 
                 test_labels.extend(labels.cpu().numpy())
-                test_preds.extend(test_pred_frames.cpu().numpy())
+                test_preds.extend(test_pred_collision.cpu().numpy())
 
                 if batch_loss.item() > mse_threshold:
                     for y_pred, image, label in zip(test_pred_frames, images, labels):
