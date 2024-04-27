@@ -132,12 +132,12 @@ def train(
                     val_images = val_images.to(device)
 
                     if collision_flag:
-                        val_pred_frames, val_pred_collision = model(images)
+                        val_pred_frames, val_pred_collision = model(val_images)
                         val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
                         val_labels = val_labels.unsqueeze(1).to(device)                    
                     else:
                         val_labels = val_labels.to(device)
-                        val_pred_frames = model(images)
+                        val_pred_frames = model(val_images)
 
                     # print(f'Val - y_hat.shape {val_outputs.shape} labels.shape {val_labels.shape}')
                     if collision_flag:
