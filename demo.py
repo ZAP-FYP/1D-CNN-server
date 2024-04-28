@@ -97,7 +97,6 @@ with torch.no_grad():
     for i, (images, labels, tta) in enumerate(data_loader):
         print(i)
         images = images.to(device)
-        y_hat = model(images)
         
         labels = labels.unsqueeze(1).to(device)
         test_pred_collision, test_pred_frames = model(images)
