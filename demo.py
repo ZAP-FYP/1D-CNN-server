@@ -95,17 +95,19 @@ data_loader = DataLoader(
 )
 with torch.no_grad():
     for i, (images, labels, tta) in enumerate(data_loader):
+        print(i)
         images = images.to(device)
         y_hat = model(images)
         
         labels = labels.unsqueeze(1).to(device)
-        y_hat = torch.where(y_hat>0.5, torch.tensor(1.0), torch.tensor(0.0))
+        test_pred_collision, test_pred_frames = model(images)
+        test_pred_collision = torch.where(test_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
 
         if config.custom_loss:
             tta = tta.to(device)
-            batch_loss = criterion(y_hat, labels, tta)
+            batch_loss = criterion(test_pred_collision, labels, tta)
         else:
-            batch_loss = criterion(y_hat, labels)
+            batch_loss = criterion(test_pred_collision, labels)
             
         samples_count += labels.size(0)
         
