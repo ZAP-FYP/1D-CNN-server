@@ -14,14 +14,14 @@ config = Config()
 
 
 input_size = 100
-hidden_size = 50
+hidden_size = 500
 kernel_size = 3
-num_layers = 1
+num_layers = 3
 learning_rate = 0.001
 bidirectional = False
 momentum = 0.9
 
-model = ConvLSTM1D(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'Device {device}')
 model.to(device)
