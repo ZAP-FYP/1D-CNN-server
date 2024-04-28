@@ -24,12 +24,12 @@ momentum = 0.9
 model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'Device {device}')
-model.to(device)
 if config.collision_flag:
     if config.pretrained_flag:
         checkpoint_file = f"model/{config.model_name}/best_model_checkpoint.pth"
         if os.path.isfile(checkpoint_file):
             model = get_classification_model(model, checkpoint_file)
+            model.to(device)
             if config.custom_loss:
                 criterion = CustomLoss(frame_rate=config.frame_rate/config.frame_avg_rate)
             else:
