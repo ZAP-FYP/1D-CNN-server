@@ -611,6 +611,9 @@ class CollisionDataset:
             self.test_dataset = DrivableDataset(
                 X[idx ::], y[idx ::], tta[idx ::]
             )
+            self.demo_dataset = DrivableDataset(
+                X[:: ], y[:: ], tta[:: ]
+            )
         else:
             self.train_dataset = DrivableDataset(
                 X[: val_idx : self.DRR], y[: val_idx : self.DRR], tta[: val_idx : self.DRR]
