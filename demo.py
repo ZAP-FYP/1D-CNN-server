@@ -9,6 +9,9 @@ import os
 import sys
 from src.models.custom_loss import CustomLoss
 from torch.utils.data import DataLoader
+import tkinter as tk
+from PIL import Image, ImageTk
+import numpy as np
 
 config = Config()
 
@@ -68,39 +71,54 @@ print("Model:", model_name, "| pretrained layers are frozen:", config.pretrained
 print("loss function:", criterion)
 print("threshold:", config.filtering_thresold)
 
-# train(
-#     dataset,
-#     criterion,
-#     optimizer,
-#     model,
-#     model_name,
-#     config.train_flag,
-#     config.test_flag,
-#     config.n_th_frame,
-#     config.future_f,
-#     config.visualization_flag,
-#     config.collision_flag,
-#     num_epochs=1000,
-#     batch_size=256,
-#     patience=config.patience, 
-#     custom_loss=config.custom_loss
-# )
-
 model.eval()
 test_loss = 0
 
 samples_count = 0
 data_loader = DataLoader(
-    dataset=dataset.demo_dataset, batch_size=256, shuffle=False
+    dataset=dataset.demo_dataset, batch_size=1, shuffle=False
 )
+# Create the Tkinter window
+window = tk.Tk()
+window.title("Video Prediction UI")
+
+# Create labels to display past frames
+past_labels = [tk.Label(window) for _ in range(10)]
+for i in range(10):
+    past_labels[i].grid(row=0, column=i)
+
+# Create labels to display future frames
+future_labels = [tk.Label(window) for _ in range(5)]
+for i in range(5):
+    future_labels[i].grid(row=1, column=i)
+
+# Create label to display collision flag
+collision_label = tk.Label(window, text="Collision Flag: ")
+collision_label.grid(row=2, column=0, columnspan=5)
+
+# Run the Tkinter event loop
+
+window.update()
+
 with torch.no_grad():
     for i, (images, labels, tta) in enumerate(data_loader):
         print(i)
         images = images.to(device)
-        
+        images = images.squeeze(0).to(device)
+        print(labels.shape, labels)
         labels = labels.unsqueeze(1).to(device)
+        # Convert tensors to PhotoImages
+        past_frames = [tensor_to_photoimage(images[i]) for i in range(10)]
+        future_frames = [tensor_to_photoimage(labels[i]) for i in range(10, 15)]
+
         test_pred_collision, test_pred_frames = model(images)
         test_pred_collision = torch.where(test_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
+        # Update UI elements with new images and labels
+        for i in range(10):
+            past_labels[i].config(image=past_frames[i])
+            if i<5:
+                future_labels[i].config(image=future_frames[i])
+        collision_label.config(text=f'Collision Flag: {test_pred_collision} (Target: {test_pred_collision})')
 
         if config.custom_loss:
             tta = tta.to(device)
@@ -109,4 +127,18 @@ with torch.no_grad():
             batch_loss = criterion(test_pred_collision, labels)
             
         samples_count += labels.size(0)
+
         
+
+
+
+
+
+
+
+def tensor_to_photoimage(tensor):
+    tensor = tensor.cpu().detach().numpy()
+    tensor = np.transpose(tensor, (1, 2, 0))
+    image = Image.fromarray((tensor * 255).astype(np.uint8))
+    return ImageTk.PhotoImage(image)
+
