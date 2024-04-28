@@ -257,6 +257,8 @@ def train(
                         tta = tta.to(device)
                         batch_loss = criterion(test_pred_collision, labels, tta)
                         test_loss += batch_loss.item()
+                        test_labels.extend(labels.cpu().numpy())
+                        test_preds.extend(test_pred_collision.cpu().numpy())
                     else:
                         batch_loss = criterion(test_pred_collision, labels)
                         test_loss += batch_loss.item()
@@ -267,9 +269,6 @@ def train(
 
                     
                 samples_count += labels.size(0)
-
-                test_labels.extend(labels.cpu().numpy())
-                test_preds.extend(test_pred_collision.cpu().numpy())
 
                 if batch_loss.item() > mse_threshold:
                     for y_pred, image, label in zip(test_pred_frames, images, labels):
