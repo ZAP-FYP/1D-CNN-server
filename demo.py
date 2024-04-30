@@ -18,34 +18,36 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 config = Config()
 def tensor_to_photoimage(tensor):
-    images = []
-    for x in range(tensor.shape[0]):
-        coordinates = tensor[x].cpu().detach().numpy()
-        
-        # Create a line plot using Seaborn
-        fig, ax = plt.subplots(figsize=(3, 2))
-        sns.lineplot(x=range(len(coordinates)), y=coordinates, ax=ax)
-        if tensor.shape[0]==10:
-            ax.set_xlabel('X-coordinate')
-            ax.set_ylabel('Y-coordinate')
-            ax.set_title(f'Past Frame {x}')
-        else:
-            ax.set_xlabel('X-coordinate')
-            ax.set_ylabel('Y-coordinate')
-            ax.set_title(f'Future Frame {x}')
+    # images = []
+    # for x in range(tensor.shape[0]):
+    x = 0
+    coordinates = tensor[x].cpu().detach().numpy()
+    # Create a line plot using Seaborn
+    fig, ax = plt.subplots(figsize=(3, 2))
+    sns.lineplot(x=range(len(coordinates)), y=coordinates, ax=ax)
+    ax.set_ylim(0, 350)
 
-        # Render the figure into a buffer
-        canvas = FigureCanvas(fig)
-        canvas.draw()
-        buf = canvas.buffer_rgba()
+    if tensor.shape[0]==10:
+        ax.set_xlabel('X-coordinate')
+        ax.set_ylabel('Y-coordinate')
+        ax.set_title(f'Past Frame ')
+    else:
+        ax.set_xlabel('X-coordinate')
+        ax.set_ylabel('Y-coordinate')
+        ax.set_title(f'Forecasted Future Frame ')
 
-        # Convert the buffer to a PIL Image
-        image = Image.frombytes('RGBA', canvas.get_width_height(), buf)
+    # Render the figure into a buffer
+    canvas = FigureCanvas(fig)
+    canvas.draw()
+    buf = canvas.buffer_rgba()
 
-        # Convert the PIL Image to a PhotoImage
-        photo_image = ImageTk.PhotoImage(image)
-        images.append(photo_image)
-    return images
+    # Convert the buffer to a PIL Image
+    image = Image.frombytes('RGBA', canvas.get_width_height(), buf)
+
+    # Convert the PIL Image to a PhotoImage
+    photo_image = ImageTk.PhotoImage(image)
+    # images.append(photo_image)
+    return photo_image
 
 input_size = 100
 hidden_size = 500
@@ -113,44 +115,49 @@ data_loader = DataLoader(
 window = tk.Tk()
 window.title("Video Prediction UI")
 
-# Create labels to display past frames
-past_labels = [tk.Label(window) for _ in range(10)]
-for i in range(10):
-    if i<5:
-        past_labels[i].grid(row=1, column=i)
-    else:
-        past_labels[i].grid(row=2, column=i-5)
+past_labels = tk.Label(window) 
+past_labels.grid(row=1, column=1, padx=10, pady=5)
 
+future_labels = tk.Label(window) 
+future_labels.grid(row=1, column=2, padx=10, pady=5)
 
-# Create labels to display future frames
-future_labels = [tk.Label(window) for _ in range(5)]
-for i in range(5):
-    future_labels[i].grid(row=4, column=i)
+confusion_matrix_frame = tk.Frame(window)
+confusion_matrix_frame.grid(row=2, column=0, columnspan=5)
 
-# Create label to display collision flag
-collision_label = tk.Label(window, text="")
-collision_label.grid(row=5, column=0, columnspan=5)
-# Create labels to display past frames
-past_frame_heading = tk.Label(window, text="Past Frames")
-past_frame_heading.grid(row=0, column=0, columnspan=10)
+# Label for confusion matrix
+confusion_matrix_label = tk.Label(window, text="Confusion Matrix",bg="white")
+confusion_matrix_label.grid(row=3, column=0, columnspan=5)
 
-# past_frame_canvas_1 = tk.Canvas(window, width=500, height=300)
-# past_frame_canvas_1.grid(row=1, column=0, columnspan=10)
-# past_frame_canvas_2 = tk.Canvas(window, width=500, height=300)
-# past_frame_canvas_2.grid(row=2, column=0, columnspan=10)
-# Create labels to display future frames
-future_frame_heading = tk.Label(window, text="Future Frames")
-future_frame_heading.grid(row=3, column=0, columnspan=5)
+tp_color = "green"
+tn_color = "green"
+fp_color = "red"
+fn_color = "red"
+window.config(bg="white")
+default_bg_color = window.cget("bg")
 
-# future_frame_canvas = tk.Canvas(window, width=1000, height=300)
-# future_frame_canvas.grid(row=4, column=0, columnspan=5)
+confusion_matrix_labels = []
+confusion_matrix_counts = []
 
-# Create label to display collision flag
-# collision_label = tk.Label(window, text="Collision Flag: ")
-# collision_label.grid(row=4, column=0, columnspan=5)
+tp_count = 0
+tn_count = 0
+fp_count = 0
+fn_count = 0
+# Labels for rows and columns of confusion matrix
+confusion_matrix_rows = ["True Positive", "False Negative"]
+confusion_matrix_columns = ["False Positive", "True Negative"]
 
+for i in range(2):  # Assuming binary classification
+    for j in range(2):
+        label = tk.Label(confusion_matrix_frame, width=10, height=2)
+        label.grid(row=i, column=j)
+        confusion_matrix_labels.append(label)
 
-# Run the Tkinter event loop
+# Create another copy of the confusion matrix to track counts
+for i in range(2):  # Assuming binary classification
+    for j in range(2):
+        label = tk.Label(confusion_matrix_frame, width=10, height=2)
+        label.grid(row=i, column=j + 3)  # Shift columns for the counts
+        confusion_matrix_counts.append(label)
 
 window.update()
 
@@ -169,44 +176,40 @@ with torch.no_grad():
         # Convert tensors to PhotoImages
         past_frames = tensor_to_photoimage(images)
 
-        # past_frames = [tensor_to_photoimage(images[i]) for i in range(10)]
         test_pred_frames = test_pred_frames.reshape(5, 100)
         print(test_pred_frames.shape)
         future_frames = tensor_to_photoimage(test_pred_frames)
 
-        # future_frames = [tensor_to_photoimage(test_pred_frames[i]) for i in range(5)]
         test_pred_collision = torch.where(test_pred_collision>0.5, 1, 0)
         # Update UI elements with new images and labels
-        for i in range(10):
-            past_labels[i].config(image=past_frames[i])
+        past_labels.config(image=past_frames)
+        future_labels.config(image=future_frames)
 
-            if i>=5:
-                pass
-                # past_frame_canvas_2.create_image(100*(i-5), 0, anchor=tk.NW, image=past_frames[i])
-                # past_labels[i].config(image=past_frames[i])
-            else:
-                # past_labels[i].config(image=past_frames[i])
-                future_labels[i].config(image=future_frames[i])
+        true_positive = (labels == 1) & (test_pred_collision == 1)
+        true_negative = (labels == 0) & (test_pred_collision == 0)
+        false_positive = (labels == 0) & (test_pred_collision == 1)
+        false_negative = (labels == 1) & (test_pred_collision == 0)
+        if true_positive:
+            tp_count += 1
+        elif true_negative:
+            tn_count += 1
+        elif false_positive:
+            fp_count += 1
+        elif false_negative:
+            fn_count += 1
 
-                # past_frame_canvas_1.create_image(100*i, 0, anchor=tk.NW, image=past_frames[i])
-                # future_frame_canvas.create_image(100*i, 0, anchor=tk.NW, image=future_frames[i])
+        # Update confusion matrix based on true positives, true negatives, false positives, and false negatives
+        confusion_matrix_labels[0].config(bg=tp_color if true_positive else default_bg_color, text="TP" )
+        confusion_matrix_labels[1].config(bg=fn_color if false_negative else default_bg_color, text="FN" )
+        confusion_matrix_labels[2].config(bg=fp_color if false_positive else default_bg_color, text="FP" )
+        confusion_matrix_labels[3].config(bg=tn_color if true_negative else default_bg_color, text="TN" )
 
-        # for i in range(5):
-        if test_pred_collision:
-            window.config(bg="red")
-            collision_label.config(text=f'Collision detected in the future')       
-        else:
-            window.config(bg="green")
-            collision_label.config(text=f'No Collisions detected in the future')       
+        # Update counts of true positives, true negatives, false positives, and false negatives
+        confusion_matrix_counts[0].config(text=f"TP: {tp_count}",bg = default_bg_color)
+        confusion_matrix_counts[1].config(text=f"FN: {fn_count}",bg = default_bg_color)
+        confusion_matrix_counts[2].config(text=f"FP: {fp_count}",bg = default_bg_color)
+        confusion_matrix_counts[3].config(text=f"TN: {tn_count}",bg = default_bg_color)
 
         window.update()
 
 window.destroy()
-
-
-
-
-
-
-
-
