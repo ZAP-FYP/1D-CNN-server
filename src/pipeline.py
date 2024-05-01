@@ -144,11 +144,11 @@ def train(
                         if custom_loss:
                             val_tta = val_tta.to(device)
                             loss = criterion(val_pred_collision, val_labels, val_tta)
-                            val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
-                            true_labels.extend(val_labels.cpu().numpy())
-                            predictions.extend(val_pred_collision.cpu().numpy())
                         else:
                             loss = criterion(val_pred_collision, val_labels)
+                        val_pred_collision = torch.where(val_pred_collision>0.5, torch.tensor(1.0), torch.tensor(0.0))
+                        true_labels.extend(val_labels.cpu().numpy())
+                        predictions.extend(val_pred_collision.cpu().numpy())
                     else:
                         loss = criterion(val_pred_frames, val_labels)
 
@@ -257,11 +257,11 @@ def train(
                         tta = tta.to(device)
                         batch_loss = criterion(test_pred_collision, labels, tta)
                         test_loss += batch_loss.item()
-                        test_labels.extend(labels.cpu().numpy())
-                        test_preds.extend(test_pred_collision.cpu().numpy())
                     else:
                         batch_loss = criterion(test_pred_collision, labels)
                         test_loss += batch_loss.item()
+                    test_labels.extend(labels.cpu().numpy())
+                    test_preds.extend(test_pred_collision.cpu().numpy())
                 else:
                     batch_loss = criterion(test_pred_frames, labels)
                     test_loss += batch_loss.item() 
