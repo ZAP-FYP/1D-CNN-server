@@ -17,6 +17,7 @@ from src.models.Conv2d import Conv2d, DeepConv2d, Conv2d_Pooling_Deconv, Conv2d_
 from sklearn.metrics import f1_score, average_precision_score
 from torchmetrics.classification import BinaryJaccardIndex
 import torch.nn.functional as F
+from torchinfo import summary
 
 def calculate_positive_weight(dataset):
     num_ones = np.sum(dataset == 1)
@@ -71,6 +72,7 @@ for file_name in numpy_files:
     # Load numpy file
     data = np.load(os.path.join(config.dataset_path, file_name))
     data = np.squeeze(data)
+    # print(data.shape)
     # positive_weight = calculate_positive_weight(data)
     # num_zeros , num_ones = calculate_weights(data)
     # if positive_weight==float('inf'):
@@ -129,6 +131,18 @@ test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 model = UNetWithRNN(in_channels=x_window_size, out_channels=y_window_size)
 print(model)
+def get_model_statistics(model):
+    num_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+    return {
+        'total_parameters': num_params,
+        'trainable_parameters': trainable_params
+    }
+# print(get_model_statistics(model))
+# model_summary = summary(model, input_size=(16, 10, 168, 256))
+
+# print(model_summary)
 # print("positive weights",positive_weights)
 # positive_weight = np.mean(positive_weights) 
 # print(f'positive_weight {positive_weight}')
@@ -251,9 +265,40 @@ if config.test_flag:
     iou_scores = [] 
     focal_scores = []
     channel_losses = {0:[],1:[],2:[],3:[],4:[]}
+    # skipped_batches = 0
+    # print("Total Batches",len(test_dataloader))
     for batch_x, batch_y in test_dataloader:
+        # valid_indices = torch.nonzero((batch_x != None) & (batch_y != None)).squeeze()
+        # if valid_indices.numel() == 0:
+        #     continue
+        # print(valid_indices)
+        # # Remove None data points from the batch
+        # batch_x = batch_x[valid_indices]
+        # batch_y = batch_y[valid_indices]
+
+    # for batch_x, batch_y in test_dataloader:
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)  # Transfer data to CUDA
-        
+        # print(f'Batch: {num_batches}')
+        # contain_only_zeros = (batch_y == 0).all(dim=3).all(dim=2).any(dim=1)
+        # if contain_only_zeros.any() or batch_x.shape[0]==0 or batch_y.shape[0]==0:
+        #     print(f'Skipping batch {num_batches}')
+        #     num_batches += 1
+        #     skipped_batches +=1
+        #     continue
+        # batch_y_reshaped = batch_y.view(batch_size,5,-1)
+        # for frame in batch_y_reshaped[:][:]
+        # skip_batch = False
+        # for arr in [batch_y, batch_x]:
+        #     for axis in [(2, 3)]:
+        #         if np.any(np.all(arr == 0, axis=axis)):
+        #             skip_batch = True
+        #             break
+        #     if skip_batch:
+        #         break
+
+        # if skip_batch:
+        #     print(f'Skipping batch {num_batches}')
+        #     continue
         output = model(batch_x.float())
         # Assuming batch_y is a tensor of shape [batch_size, num_channels, height, width]
         new_width = 100
@@ -355,7 +400,7 @@ if config.test_flag:
         IoU: {sum(iou_scores) / len(iou_scores)}\
         Avg precision: {sum(avg_precision_scores) / len(avg_precision_scores):.4f} \
         F1 score: {sum(f1_scores) / len(f1_scores):.4f}')
-
+    # print(f'No of batches :{num_batches}, skipped batches: {skipped_batches}')
     # print(f'Channel 1 loss: {sum(channel_losses[0]) / len(channel_losses[0]):.4f}\
     #         Channel 2 loss: {sum(channel_losses[1]) / len(channel_losses[1]):.4f}\
     #         Channel 3 loss: {sum(channel_losses[2]) / len(channel_losses[2]):.4f}\
