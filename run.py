@@ -66,7 +66,8 @@ if config.dataset_type == 'simple':
     )
 elif config.dataset_type == 'video':
     dataset = VideoFrameDataset(
-        directory_path=config.dataset_path,
+        train_directory_path=config.train_dataset_path,
+        test_directory_path=config.test_dataset_path,
         split_ratio=0.80,
         test_flag=config.test_flag,
         DRR=config.DRR,
@@ -78,8 +79,7 @@ elif config.dataset_type == 'video':
     )
 elif config.dataset_type == 'collision':
     dataset = CollisionDataset(
-
-        directory_path=config.dataset_path,
+        directory_path=config.train_dataset_path,
         split_ratio=0.80,
         test_flag=config.test_flag,
         DRR=config.DRR,

@@ -201,7 +201,8 @@ class SimpleFrameDataset:
 class VideoFrameDataset:
     def __init__(
         self,
-        directory_path,
+        train_directory_path,
+        test_directory_path,
         split_ratio=0.80,
         test_flag=False,
         DRR=0,
@@ -211,7 +212,8 @@ class VideoFrameDataset:
         future_frames=5,
         threshold=0
     ):
-        self.directory_path = directory_path
+        self.train_directory_path = train_directory_path
+        self.test_directory_path = test_directory_path
         self.split_ratio = split_ratio
         self.test_flag = test_flag
         self.DRR = DRR
@@ -278,15 +280,17 @@ class VideoFrameDataset:
     
 
     def create_dataset(self):
-        total_data = []
-        X = []
-        y = []
+        # total_data = []
+        train_X, test_X = [], []
+        train_y, test_y = [], []
 
-        filenames = [
-            f for f in os.listdir(self.directory_path) if not f.startswith(".DS_Store")
+        train_filenames = [
+            f for f in os.listdir(self.train_directory_path) if not f.startswith(".DS_Store")
         ]
-        
-        # for folder in folders:
+        test_filenames = [
+            f for f in os.listdir(self.test_directory_path) if not f.startswith(".DS_Store")
+        ]
+        # for folder in folders:    # for collision video dataset
         #     data_npy = []
 
         #     foldername = os.path.abspath(os.path.join(self.directory_path, folder, 'images'))
@@ -299,10 +303,10 @@ class VideoFrameDataset:
         #     data_npy = np.array(data_npy)
         #     # print("video", np.array(data_npy).shape)
 
-        for _file in filenames:
-            file = os.path.join(self.directory_path, _file)
+        for _file in train_filenames:
+            file = os.path.join(self.train_directory_path, _file)
             data_npy = np.load(file)
-            total_data.extend(data_npy)
+            # total_data.extend(data_npy)
 
             # print("before", data_npy.shape)
             # non_zero_indices = np.any(data_npy != 0, axis=1)  # Find rows with at least one non-zero element
@@ -317,44 +321,70 @@ class VideoFrameDataset:
                 X_file, y_file = self.get_X_y(data_npy, self.prev_frames, self.future_frames, self.threshold)
                 # print("Not averaging")
             
-            X.extend(X_file)
-            y.extend(y_file)
+            train_X.extend(X_file)
+            train_y.extend(y_file)
 
-        X = np.array(X)
-        y = np.array(y)
+        train_X = np.array(train_X)
+        train_y = np.array(train_y)
+
+        for _file in test_filenames:
+            file = os.path.join(self.test_directory_path, _file)
+            data_npy = np.load(file)
+            # total_data.extend(data_npy)
+
+            # print("before", data_npy.shape)
+            # non_zero_indices = np.any(data_npy != 0, axis=1)  # Find rows with at least one non-zero element
+            # data_npy = data_npy[non_zero_indices] 
+            # print("after", data_npy.shape)
+
+            if self.frame_avg_rate > 0:
+                averaged_frames = self.create_averaged_frames(data_npy, self.frame_avg_rate)
+                X_file, y_file = self.get_X_y(averaged_frames, self.prev_frames, self.future_frames,self.threshold)
+                # print("averaged_frames:", averaged_frames.shape)
+            elif self.frame_avg_rate == 0:
+                X_file, y_file = self.get_X_y(data_npy, self.prev_frames, self.future_frames, self.threshold)
+                # print("Not averaging")
+            
+            test_X.extend(X_file)
+            test_y.extend(y_file)
+
+        test_X = np.array(test_X)
+        test_y = np.array(test_y)
 
         # self.visualize(X[:100], y[:100], "filtered")
 
-        print("total data: ", np.array(total_data).shape)
-        print(f"X shape: {X.shape}, y shape: {y.shape}")
+        # print("total data: ", np.array(total_data).shape)
+        print(f"train X shape: {train_X.shape}, train y shape: {train_y.shape}")
+        print(f"test X shape: {test_X.shape}, test y shape: {test_y.shape}")
 
-        flatten_y = y.reshape((len(y), -1))
-        count, self.in_channels, self.in_seq_len = X.shape
+        flatten_train_y = train_y.reshape((len(train_y), -1))
+        flatten_test_y = test_y.reshape((len(test_y), -1))
+        count, self.in_channels, self.in_seq_len = train_X.shape
 
-        if not self.test_flag:
-            idx = int(count)
-        else:
-            idx = int(count * self.split_ratio)
+        # if not self.test_flag:
+        #     idx = int(count)
+        # else:
+        #     idx = int(count * self.split_ratio)
             
-        val_idx = int(idx * self.split_ratio)
+        val_idx = int(int(count) * self.split_ratio)
 
         if self.DRR == 0:
-            self.train_dataset = DrivableDataset(X[:val_idx:], flatten_y[:val_idx:])
+            self.train_dataset = DrivableDataset(train_X[:val_idx:], flatten_train_y[:val_idx:])
             self.validation_dataset = DrivableDataset(
-                X[val_idx:idx:], flatten_y[val_idx:idx:]
+                train_X[val_idx::], flatten_train_y[val_idx::]
             )
             self.test_dataset = DrivableDataset(
-                X[idx ::], flatten_y[idx ::]
+                test_X, flatten_test_y
             )
         else:
             self.train_dataset = DrivableDataset(
-                X[: val_idx : self.DRR], flatten_y[: val_idx : self.DRR]
+                train_X[: val_idx : self.DRR], flatten_train_y[: val_idx : self.DRR]
             )
             self.validation_dataset = DrivableDataset(
-                X[val_idx : idx : self.DRR], flatten_y[val_idx : idx : self.DRR]
+                train_X[val_idx : : self.DRR], flatten_train_y[val_idx : : self.DRR]
             )
             self.test_dataset = DrivableDataset(
-                X[idx :: self.DRR], flatten_y[idx :: self.DRR]
+                test_X[ :: self.DRR], flatten_test_y[ :: self.DRR]
         )
         
         print(f'Train samples {len(self.train_dataset)}')

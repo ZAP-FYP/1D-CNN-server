@@ -60,7 +60,7 @@ def train(
 
     if os.path.isfile(checkpoint_file):
         print("Loading saved model...")
-        checkpoint = torch.load(checkpoint_file)
+        checkpoint = torch.load(checkpoint_file, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         current_epoch = checkpoint["epoch"]
@@ -290,7 +290,7 @@ def train(
                     # avg_precision1 += (sum(precisions_1)/(labels.size(0)*future_f))
                     # test_f11 += (sum(f1_scores_1)/(labels.size(0)*future_f))
 
-                    baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100),Iou)
+                    baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(baseline_yhat.size(0), future_f, 100),Iou)
                     baseline_test_miou += (sum(baseline_ious)/(labels.size(0)*future_f))
                     baseline_avg_precision += (sum(baseline_precisions)/(labels.size(0)*future_f))
                     baseline_test_f1 += (sum(baseline_f1_scores)/(labels.size(0)*future_f))
@@ -524,8 +524,9 @@ def get_segmentation_matrix1(array, max_size):
 
 def get_segmentation_matrix(array, max_size):
     max_size = max_size + 2 
-    row_indices = torch.arange(max_size, dtype=torch.int, device='cuda:0')
-    array = array.to('cuda:0')
+    # row_indices = torch.arange(max_size, dtype=torch.int, device='cuda:0')
+    row_indices = torch.arange(max_size, dtype=torch.int)
+    # array = array.to('cuda:0')
     binary_matrix = torch.where(row_indices.unsqueeze(1) <= array.unsqueeze(0), 1, 0)
     return binary_matrix
 
