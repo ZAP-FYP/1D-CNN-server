@@ -127,7 +127,7 @@ def train(
 
                 predictions = []
                 true_labels = []
-                
+
                 for i, (val_images, val_labels, val_tta) in enumerate(validation_loader):
                     val_images = val_images.to(device)
 
@@ -154,7 +154,6 @@ def train(
 
                     val_loss += loss.item()
 
-                    batch_size = val_images.size(0)
                     # last_frames = val_images[:, -1, :]
                     # duplicated_last_frames = last_frames.repeat(1, 5)
                     # reshaped_last_frames = duplicated_last_frames.view(batch_size, -1)
@@ -238,7 +237,8 @@ def train(
 
         test_preds = []
         test_labels = []
-
+        label_1 = []
+        label_0 = []
         with torch.no_grad():
             for i, (images, labels, tta) in enumerate(test_loader):
                 images = images.to(device)
@@ -262,6 +262,12 @@ def train(
                         test_loss += batch_loss.item()
                     test_labels.extend(labels.cpu().numpy())
                     test_preds.extend(test_pred_collision.cpu().numpy())
+                    print(test_labels.cpu().numpy())
+                    if test_labels.cpu().numpy():
+                        label_1.append(test_pred_collision)
+                    else:
+                        label_0.append(test_pred_collision)
+                    batch_size = val_images.size(0)
                 else:
                     batch_loss = criterion(test_pred_frames, labels)
                     test_loss += batch_loss.item() 
@@ -329,7 +335,23 @@ def train(
             precision = precision_score(test_labels, test_preds, zero_division=1) # Set zero_division=1 to set precision to 1.0 when no samples are predicted
             recall = recall_score(test_labels, test_preds)
             f1_collision = f1_score(test_labels, test_preds)
+            # Plotting
+            plt.figure(figsize=(10, 5))
 
+            plt.subplot(1, 2, 1)
+            plt.hist(label_0, bins=np.arange(0, 1.1, 0.1), edgecolor='black')
+            plt.title('True Label 0')
+            plt.xlabel('Bins(Predictions)')
+            plt.ylabel('Frequency')
+
+            plt.subplot(1, 2, 2)
+            plt.hist(label_1, bins=np.arange(0, 1.1, 0.1), edgecolor='black')
+            plt.title('True Label 1')
+            plt.xlabel('Bins(Prediction)')
+            plt.ylabel('Frequency')
+
+            plt.tight_layout()
+            plt.show()
             print("Confusion Matrix:\n", confusion_matrix(test_labels, test_preds))
             print(f"For Test Data - Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1_collision:.4f}")
             if custom_loss:
