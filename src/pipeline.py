@@ -296,7 +296,7 @@ def train(
                     # avg_precision1 += (sum(precisions_1)/(labels.size(0)*future_f))
                     # test_f11 += (sum(f1_scores_1)/(labels.size(0)*future_f))
 
-                    baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(y_hat.size(0), future_f, 100),Iou)
+                    baseline_ious, baseline_precisions, baseline_f1_scores, baseline_bce_losses,  baseline_ious_1, baseline_precisions_1, baseline_f1_scores_1= get_metrics(labels.reshape(labels.size(0), future_f, 100), baseline_yhat.reshape(test_pred_frames.size(0), future_f, 100),Iou)
                     baseline_test_miou += (sum(baseline_ious)/(labels.size(0)*future_f))
                     baseline_avg_precision += (sum(baseline_precisions)/(labels.size(0)*future_f))
                     baseline_test_f1 += (sum(baseline_f1_scores)/(labels.size(0)*future_f))

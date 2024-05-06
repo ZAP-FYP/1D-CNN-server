@@ -1,4 +1,4 @@
-from src.models.conv_lstm import ConvLSTM1D_Attention2,  ConvLSTM1D_Attention
+from src.models.conv_lstm import ConvLSTM1D_Attention2,  ConvLSTM1D_Attention, ConvLSTM1D
 from src.pipeline import train
 from src.dataset import SimpleFrameDataset, VideoFrameDataset, CollisionDataset
 import torch.nn as nn
@@ -20,7 +20,7 @@ learning_rate = 0.001
 bidirectional = False
 momentum = 0.9
 
-model = ConvLSTM1D_Attention(input_size, hidden_size, kernel_size, num_layers, bidirectional)
+model = ConvLSTM1D(input_size, hidden_size, kernel_size, num_layers, bidirectional)
 
 if config.collision_flag:
     if config.pretrained_flag:
