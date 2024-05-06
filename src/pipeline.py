@@ -270,12 +270,12 @@ def train(
                     
                 samples_count += labels.size(0)
 
-                if batch_loss.item() > mse_threshold:
-                    for y_pred, image, label in zip(test_pred_frames, images, labels):
-                        bad_samples.append((image, label, y_pred))
-                else:
-                    for y_pred, image, label in zip(test_pred_frames, images, labels):
-                        good_samples.append((image, label, y_pred))
+                # if batch_loss.item() > mse_threshold:
+                #     for y_pred, image, label in zip(test_pred_frames, images, labels):
+                #         bad_samples.append((image, label, y_pred))
+                # else:
+                #     for y_pred, image, label in zip(test_pred_frames, images, labels):
+                #         good_samples.append((image, label, y_pred))
                 
                 if not collision_flag:
                     
