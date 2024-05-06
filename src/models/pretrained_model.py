@@ -19,9 +19,33 @@ class CollisionClassifier(nn.Module):
 
         # Define your new classification model
         num_outputs = 1  # Change this according to your task
-
+        # Convolutional LSTM layers
+        self.conv_layer1 = nn.Sequential(
+            nn.Conv1d(
+                in_channels=500, out_channels=500, kernel_size=5, stride=1, padding=2
+            ),
+            nn.ReLU(),
+        )
+        self.conv_layer2 = nn.Sequential(
+            nn.Conv1d(
+                in_channels=500, out_channels=500, kernel_size=5, stride=1, padding=2
+            ),
+            nn.ReLU(),
+        )
+        self.conv_layer3 = nn.Sequential(
+            nn.Conv1d(
+                in_channels=500, out_channels=100, kernel_size=5, stride=1, padding=2
+            ),
+            nn.ReLU(),
+        )
+        self.conv_layer4 = nn.Sequential(
+            nn.Conv1d(
+                in_channels=100, out_channels=100, kernel_size=5, stride=1, padding=2
+            ),
+            nn.ReLU(),
+        )
         # Replace fc layer in pretrained model with new classifier
-        self.fc = nn.Linear(num_ftrs, num_outputs)
+        self.fc = nn.Linear(100, num_outputs)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -30,6 +54,11 @@ class CollisionClassifier(nn.Module):
         
         # Output of the final classification layer
         x = self.fc(pretrained_output)
+        x = self.conv_layer1(x)
+        x = self.conv_layer2(x)
+        x = self.conv_layer3(x)
+        x = self.conv_layer4(x)
+
         final_output = self.sigmoid(x)
         
         return final_output, pretrained_output
