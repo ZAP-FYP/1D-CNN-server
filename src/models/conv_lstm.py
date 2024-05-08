@@ -1,99 +1,126 @@
 
-# import torch
-# import torch.nn as nn
-
-# class ConvLSTM1D(nn.Module):
-#     def __init__(
-#         self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
-#     ):
-#         super(ConvLSTM1D, self).__init__()
-#         self.input_size = input_size
-#         self.hidden_size = hidden_size
-#         self.kernel_size = kernel_size
-#         self.num_layers = num_layers
-#         self.bidirectional = bidirectional
-
-#         # Convolutional LSTM layers
-#         self.conv_layers = nn.Sequential(
-#             nn.Conv1d(
-#                 in_channels=10, out_channels=1, kernel_size=5, stride=1, padding=2
-#             ),
-#             nn.ReLU(),
-#         )
-#         self.conv_lstm = nn.LSTM(
-#             input_size,
-#             hidden_size,
-#             num_layers,
-#             batch_first=True,
-#             bidirectional=bidirectional,
-#         )
-
-#         # Adjust the size of the fully connected layer output accordingly
-#         fc_input_size = 2 * hidden_size if bidirectional else hidden_size
-#         self.fc = nn.Linear(fc_input_size, 500)
-
-#     def forward(self, x):
-#         # Input shape: (batch_size, sequence_length, input_size)
-
-
-#         # Initialize hidden and cell states
-#         batch_size, _, _ = x.size()
-#         # Initialize hidden and cell states
-#         num_directions = 2 if self.bidirectional else 1
-#         h0 = torch.zeros(
-#             self.num_layers * num_directions, batch_size, self.hidden_size
-#         ).to(x.device)
-#         c0 = torch.zeros(
-#             self.num_layers * num_directions, batch_size, self.hidden_size
-#         ).to(x.device)
-#         # h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
-#         # c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
-#         input_x = x
-#         selected_array = input_x[:, -1:, :]     # Get the 9th array in the middle dimension
-#         # print("selected_array", selected_array.shape)
-
-#         x = self.conv_layers(x)
-
-
-
-#         # ConvLSTM forward pass
-#         lstm_out, _ = self.conv_lstm(x, (h0, c0)) 
-
-#         # Adding residual connection to lstm layer
-#         # concatenated_input = torch.cat([x, selected_array], dim=1)
-#         # lstm_out, _ = self.conv_lstm(concatenated_input, (h0, c0))
-
-#         # print("LSTM Output Shape:", lstm_out.shape)
-
-
-#         # Take the output of the last time step
-#         lstm_last_output = lstm_out[:, -1, :] 
-#         # print(lstm_last_output.shape)
-
-
-#         # Fully connected layer
-#         # output = self.fc(lstm_last_output) 
-
-#         # Adding residual connection to fcn
-#         reshaped = selected_array.repeat(1, 5, 1)        # Replicate it 5 times along the specified dimension (dimension 1 in this case)
-#         reshaped = torch.flatten(reshaped, 1)
-#         output = self.fc(lstm_last_output) + reshaped
-
-#         # print("Output Shape:", output.shape)
-
-#         # print("Output Shape:", output.shape)
-
-#         return output
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import TransformerEncoder, TransformerEncoderLayer, TransformerDecoder, TransformerDecoderLayer
+
+class TransformerModel(nn.Module):
+    def __init__(self, num_frames, input_dim, output_dim, num_layers=6, d_model=512, nhead=8, dim_feedforward=2048, dropout=0.1):
+        super(TransformerModel, self).__init__()
+        self.encoder = TransformerEncoder(TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout), num_layers=num_layers)
+        self.decoder = TransformerDecoder(TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout), num_layers=num_layers)
+        self.linear = nn.Linear(d_model, output_dim)
+
+    def forward(self, src):
+        src = src.permute(1, 0, 2)  # Shape: (seq_len, batch_size, input_dim)
+        batch_size = src.shape[1]
+
+        # print(src.shape)
+        memory = self.encoder(src)
+        # Initialize decoder input with zeros
+        tgt = torch.zeros_like(src)
+        output = self.decoder(tgt, memory)
+        # print(output.shape)
+
+        output = self.linear(output)
+        output = output.permute(1, 0, 2).reshape(batch_size,-1)
+        return output  # Shape: (batch_size, seq_len, output_dim)
 
 class ConvLSTM1D(nn.Module):
     def __init__(
         self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
     ):
         super(ConvLSTM1D, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.kernel_size = kernel_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+
+        # Convolutional LSTM layers
+        self.conv_layers = nn.Sequential(
+            nn.Conv1d(
+                in_channels=10, out_channels=1, kernel_size=5, stride=1, padding=2
+            ),
+            nn.ReLU(),
+        )
+        self.conv_lstm = nn.LSTM(
+            input_size,
+            hidden_size,
+            num_layers,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
+        self.attention = Attention(hidden_size)
+
+        # Adjust the size of the fully connected layer output accordingly
+        fc_input_size = 2 * hidden_size if bidirectional else hidden_size
+        self.fc = nn.Linear(fc_input_size, 500)
+
+    def forward(self, x):
+        # Input shape: (batch_size, sequence_length, input_size)
+
+
+        # Initialize hidden and cell states
+        batch_size, _, _ = x.size()
+        # Initialize hidden and cell states
+        num_directions = 2 if self.bidirectional else 1
+        h0 = torch.zeros(
+            self.num_layers * num_directions, batch_size, self.hidden_size
+        ).to(x.device)
+        c0 = torch.zeros(
+            self.num_layers * num_directions, batch_size, self.hidden_size
+        ).to(x.device)
+        # h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
+        # c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
+        input_x = x
+        selected_array = input_x[:, -1:, :]     # Get the 9th array in the middle dimension
+        # print("selected_array", selected_array.shape)
+
+        x = self.conv_layers(x)
+
+
+
+        # ConvLSTM forward pass
+        lstm_out, _ = self.conv_lstm(x, (h0, c0)) 
+
+        # Adding residual connection to lstm layer
+        # concatenated_input = torch.cat([x, selected_array], dim=1)
+        # lstm_out, _ = self.conv_lstm(concatenated_input, (h0, c0))
+
+        # print("LSTM Output Shape:", lstm_out.shape)
+
+        context_vector = self.attention(lstm_out)
+        # print(f'context_vector.shape {context_vector.shape}')
+
+        # Take the output of the last time step
+        # lstm_last_output = context_vector[:, -1, :] 
+        # print(lstm_last_output.shape)
+
+
+        # Fully connected layer
+        # output = self.fc(lstm_last_output) 
+
+        # Adding residual connection to fcn
+        reshaped = selected_array.repeat(1, 5, 1)        # Replicate it 5 times along the specified dimension (dimension 1 in this case)
+        reshaped = torch.flatten(reshaped, 1)
+        output = self.fc(context_vector) + reshaped
+
+        # print("Output Shape:", output.shape)
+
+        # print("Output Shape:", output.shape)
+
+        return output
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ConvLSTM1D2(nn.Module):
+    def __init__(
+        self, input_size, hidden_size, kernel_size, num_layers, bidirectional=False
+    ):
+        super(ConvLSTM1D2, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.kernel_size = kernel_size
