@@ -122,41 +122,60 @@ class CollisionClassifierTrainable(nn.Module):
 
         self.conv_layer1 = nn.Sequential(
             nn.Conv1d(
-                in_channels=500, out_channels=500, kernel_size=5, stride=1, padding=2
+                in_channels=11, out_channels=11, kernel_size=3, stride=1, padding=2
             ),
             nn.ReLU(),
         )
         self.conv_layer2 = nn.Sequential(
             nn.Conv1d(
-                in_channels=500, out_channels=500, kernel_size=5, stride=1, padding=2
+                in_channels=11, out_channels=11, kernel_size=5, stride=1, padding=2
             ),
             nn.ReLU(),
         )
         self.conv_layer3 = nn.Sequential(
             nn.Conv1d(
-                in_channels=500, out_channels=100, kernel_size=5, stride=1, padding=2
+                in_channels=11, out_channels=11, kernel_size=7, stride=1, padding=2
             ),
             nn.ReLU(),
         )
         self.conv_layer4 = nn.Sequential(
             nn.Conv1d(
-                in_channels=100, out_channels=100, kernel_size=5, stride=1, padding=2
+                in_channels=11, out_channels=11, kernel_size=9, stride=1, padding=2
             ),
             nn.ReLU(),
         )
         # Replace fc layer in pretrained model with new classifier
-        self.fc = nn.Linear(100, 1)
+        self.fc1 = nn.Linear(11*96, 11*50)
+        self.fc2 = nn.Linear(11*50, 11*10)
+        self.fc3 = nn.Linear(11*10, 11*1)
+        self.fc4 = nn.Linear(11*1, 1)
+
         self.sigmoid = nn.Sigmoid()
+
 
     def forward(self, x):
         # Output of pre-trained model
         # pretrained_output = self.pretrained_model(x)
-        
-        x = self.conv_layer1(x)
+        # pretrained_output = pretrained_output[:,-100:]
+        batch_size = x.shape[0]
+        reshaped_input = x.view(batch_size, 5, 100)
+
+        # print(pretrained_output.shape)
+        # print(reshaped_input.shape)
+        # x =  x.view(batch_size,)
+        # print(x.shape, reshaped_input[:,-1,:].shape)
+        concatenated_tensor = torch.cat((x, reshaped_input[:,-1,:].unsqueeze(1)), dim=1)
+        # Output of the final classification layer
+        x = self.conv_layer1(concatenated_tensor)
         x = self.conv_layer2(x)
         x = self.conv_layer3(x)
         x = self.conv_layer4(x)
-        x = self.fc(x)
+        # print(f' shape before fc {x.shape,x.squeeze().shape}')
+        x = self.fc1(x.view(batch_size,-1))
+        # print(f' shape after fc {x.shape}')
+        x = self.fc2(x)
+        x = self.fc3(x)
+        x = self.fc4(x)
 
         final_output = self.sigmoid(x)
         
